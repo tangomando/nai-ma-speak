@@ -100,44 +100,33 @@ local function Build()
         t:SetPoint("TOPLEFT", (i % COLS) * BLOCK, -math.floor(i / COLS) * BLOCK)
         textures[i + 1] = t
     end
-    ns.Repaint()
+    for color = 0, COLS - 1 do ns.PaintBlock(COLS * ROWS + color + 1, color) end
     ns.PlaceStrip()
 end
 
--- With the game's HDR output on, the picture is brightened for the display, and a
--- screen capture sees it brightened: the top two of the four levels came back both
--- clipped to white (0, 85, 170, 255 read as 0, 149, 255, 255). The strip is then drawn
--- at half brightness, so every level stays below white. The companion reads blocks by
--- the palette row, which is dimmed the same way, so it needs to know nothing of this.
-local HDR_LEVEL = 0.5
+-- The strip is drawn at half brightness, always. With the game's HDR output on, a
+-- screen capture sees the picture brightened: at full brightness the top two of the
+-- four levels came back both clipped to white (0, 85, 170, 255 read as 0, 149, 255,
+-- 255). At half they stay apart whether or not the capture brightens them, so nothing
+-- depends on noticing the HDR setting, which can be switched from the console at any
+-- time. A dimmer strip is also less glaring in the corner of the screen. The companion
+-- reads blocks by the palette row, dimmed the same way, so it needs to know nothing of
+-- this.
+local BRIGHTNESS = 0.5
 
 function ns.StripBrightness()
-    if GetCVar and GetCVar("HDROutput") == "1" then return HDR_LEVEL end
-    return 1
+    return BRIGHTNESS
 end
-
-local brightness = 1
 
 -- Colors the block at `index` (from 1) with one of the 64 colors.
 function ns.PaintBlock(index, color)
     local r, g, b = math.floor(color / 16) % 4, math.floor(color / 4) % 4, color % 4
-    local top = 3 / brightness
+    local top = 3 / BRIGHTNESS
     textures[index]:SetColorTexture(r / top, g / top, b / top, 1)
 end
 
-local shown -- the symbols on the strip now, to paint again when the brightness changes
-
 local function Paint(symbols)
-    shown = symbols
     for i, s in ipairs(symbols) do ns.PaintBlock(i, s) end
-end
-
--- Paints the palette, and the frame on show, at the brightness the game's HDR option
--- asks for now.
-function ns.Repaint()
-    brightness = ns.StripBrightness()
-    for color = 0, COLS - 1 do ns.PaintBlock(COLS * ROWS + color + 1, color) end
-    if shown then Paint(shown) end
 end
 
 local function ForgetOld()
@@ -206,8 +195,3 @@ end
 
 ns.On("DISPLAY_SIZE_CHANGED", function() ns.PlaceStrip() end)
 ns.On("UI_SCALE_CHANGED", function() ns.PlaceStrip() end)
--- HDR turned on or off in the game's options: the strip is painted again at the new
--- brightness, frame and palette together.
-ns.On("CVAR_UPDATE", function()
-    if frame and ns.StripBrightness() ~= brightness then ns.Repaint() end
-end)

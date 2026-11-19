@@ -45,6 +45,8 @@ pub enum UiEvent {
     TestResult { result: Result<String, String>, seconds: f32 },
     /// The game's chat windows, in screen points, whenever the addon reports them.
     ChatWindows(Vec<crate::layout::ChatWindow>),
+    /// Where the strip is on screen, in points, once found; None once lost.
+    StripPlace(Option<crate::focus::Rect>),
     /// The chat window the addon copies to the overlay; empty for all chat.
     SourceWindow(String),
     /// A reply could not be translated.

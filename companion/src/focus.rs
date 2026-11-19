@@ -164,11 +164,14 @@ fn wow_view() -> WowView {
 fn wow_view() -> WowView {
     let focused = xcap::Window::all().ok().and_then(|windows| {
         let focused = windows.iter().find(|w| w.is_focused().unwrap_or(false))?;
-        // The title alone settles it for WoW. The program's name is asked for only when it
-        // does not: on Windows that fails for a program run as administrator, such as Task
-        // Manager, and xcap logs an error each time.
+        // The title settles it: WoW's window is titled "World of Warcraft" on every client.
+        // The program's name is asked for only for a window without a title, since on
+        // Windows asking fails for many programs (those run as administrator, those
+        // without version information) and xcap logs an error each time, four times a
+        // second while one has focus.
         let title = focused.title().unwrap_or_default();
-        Some(is_wow(&title, "") || is_wow(&title, &focused.app_name().unwrap_or_default()))
+        let app = if title.trim().is_empty() { focused.app_name().unwrap_or_default() } else { String::new() };
+        Some(is_wow(&title, &app))
     });
     match focused {
         None => WowView::Unknown,

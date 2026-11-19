@@ -373,6 +373,27 @@ fn region_in_points(lock: Lock, scale: f32, max_w: u32, max_h: u32) -> Option<(u
     (x1 > x0 && y1 > y0).then(|| (x0, y0, x1 - x0, y1 - y0))
 }
 
+/// Captured pixels per screen point: macOS captures a scale-2 display in pixels but places
+/// windows in points; elsewhere the two are the same.
+fn capture_scale(monitor: &Monitor) -> f32 {
+    if cfg!(target_os = "macos") {
+        monitor.scale_factor().unwrap_or(1.0).max(1.0)
+    } else {
+        1.0
+    }
+}
+
+/// The strip's rectangle in screen points, palette row included, for the window that
+/// covers it from the player's sight.
+fn on_screen(monitor: &Monitor, lock: Lock) -> crate::focus::Rect {
+    placed(lock, (monitor.x().unwrap_or(0) as f32, monitor.y().unwrap_or(0) as f32), capture_scale(monitor))
+}
+
+fn placed(lock: Lock, monitor: (f32, f32), scale: f32) -> crate::focus::Rect {
+    let (w, h) = size(lock);
+    [monitor.0 + lock.x as f32 / scale, monitor.1 + lock.y as f32 / scale, w as f32 / scale, h as f32 / scale]
+}
+
 /// Reads the strip's own rectangle once it has been found. Also hands back the capture
 /// and where the strip is in it, for saving when the strip cannot be read.
 fn read_locked(monitor: &Monitor, lock: Lock) -> (Decoded, Option<(RgbaImage, Lock)>) {
@@ -516,6 +537,7 @@ pub fn spawn(jobs: Sender<Job>, asked: Sender<Job>, ui: UiSender) {
                             img.width(),
                             img.height()
                         ));
+                        ui.send(UiEvent::StripPlace(Some(on_screen(monitor, lock))));
                         locked = Some((index, lock));
                         last_good = Instant::now();
                         unread_since = None;
@@ -608,6 +630,7 @@ pub fn spawn(jobs: Sender<Job>, asked: Sender<Job>, ui: UiSender) {
                     // Hidden UI, a loading screen, or the window moved.
                     if last_good.elapsed() > Duration::from_secs(3) {
                         crate::diag::log("strip: lost, no frame read at its place for 3 s");
+                        ui.send(UiEvent::StripPlace(None));
                         locked = None;
                     }
                 }
@@ -682,6 +705,15 @@ mod tests {
         let region = xcap::image::imageops::crop_imm(&full, x * 2, y * 2, w * 2, h * 2).to_image();
         let found = find(&region).expect("strip found in the region capture");
         assert!(matches!(decode(&region, found), Decoded::Frame(f) if f.text == text));
+    }
+
+    /// The cover sits exactly over the strip: on a second screen to the left, and on a
+    /// scale-2 display where captures are in pixels and windows in points.
+    #[test]
+    fn places_the_cover_over_the_strip() {
+        let lock = Lock { x: 0, y: 0, block: 4 };
+        assert_eq!(placed(lock, (0.0, 0.0), 1.0), [0.0, 0.0, 256.0, 36.0]);
+        assert_eq!(placed(Lock { x: 8, y: 52, block: 4 }, (-1920.0, 0.0), 2.0), [-1916.0, 26.0, 128.0, 18.0]);
     }
 
     #[test]

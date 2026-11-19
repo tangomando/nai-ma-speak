@@ -1,4 +1,5 @@
 use crate::backends::claude::key_problem;
+use crate::cover;
 use crate::config::{self, Backend, Config, Reading, Region, CLAUDE_MODELS, CUSTOM_LABEL, ENDPOINT_PRESETS};
 use crate::translate::WOW_CHAT_BYTES;
 use crate::focus::WowView;
@@ -147,6 +148,13 @@ pub struct TranslateApp {
     /// The chat window the addon copies to the overlay, empty for all chat; None until an
     /// addon that reports it has said.
     source_window: Option<String>,
+    /// Where the strip is on screen, in points, while it is found.
+    strip_place: Option<crate::focus::Rect>,
+    /// Whether the strip cover window has been left out of screen captures; until then it
+    /// is kept off the strip.
+    cover_hidden_from_capture: bool,
+    /// Where the strip cover was last sent.
+    cover_sent: Option<egui::Pos2>,
     /// Whether the overlay was on a chat tab last frame, and where it was last sent.
     overlay_anchored: bool,
     overlay_sent: Option<egui::Pos2>,
@@ -301,6 +309,13 @@ fn source_command(name: &str) -> String {
     format!("/tr /window {}", if name.is_empty() { "all" } else { name })
 }
 
+fn cover_id() -> ViewportId {
+    ViewportId::from_hash_of("strip cover")
+}
+
+/// The strip cover's color: near black, like a dark corner of the game.
+const COVER_COLOR: Color32 = Color32::from_rgb(10, 10, 12);
+
 fn overlay_id() -> ViewportId {
     ViewportId::from_hash_of("overlay")
 }
@@ -335,6 +350,9 @@ impl TranslateApp {
             font_texture_stale: false,
             chat_windows: Vec::new(),
             source_window: None,
+            strip_place: None,
+            cover_hidden_from_capture: false,
+            cover_sent: None,
             overlay_anchored: false,
             overlay_sent: None,
             overlay_hidden: false,
@@ -503,6 +521,7 @@ impl TranslateApp {
                     }
                     self.chat_windows = windows;
                 }
+                UiEvent::StripPlace(place) => self.strip_place = place,
                 UiEvent::SourceWindow(name) => {
                     if self.source_window.as_ref() != Some(&name) {
                         crate::diag::log(format!("source window: {:?}", if name.is_empty() { "all chat" } else { &name }));
@@ -1087,6 +1106,10 @@ impl TranslateApp {
         slider(ui, "Lines kept (scrollback)", &mut self.draft.max_lines, 1..=500);
 
         self.source_picker(ui);
+        if cover::AVAILABLE {
+            ui.checkbox(&mut self.draft.cover_strip, "Cover the pixel strip")
+                .on_hover_text("Puts a dark patch over the strip in the top-left corner. You see the patch; the companion still reads the strip, since screen captures leave the patch out.");
+        }
 
         // On a chat tab the overlay takes the tab's place, size, text size and
         // background. Placed by hand, it has its own, and can be unlocked to drag it.
@@ -1166,6 +1189,59 @@ impl TranslateApp {
             Some(_) => "Picking another copies a /tr command to paste into WoW chat; the game makes the switch.",
         };
         ui.label(RichText::new(note).color(theme::MUTED));
+    }
+
+    /// The strip cover (see `cover`): a dark window over the strip that the player sees
+    /// and screen captures leave out. It is opened parked off screen, left out of captures,
+    /// and only then moved onto the strip; if leaving it out fails it stays parked. It goes
+    /// with the strip, and away while WoW is out of sight, like the overlay.
+    fn strip_cover(&mut self, ctx: &egui::Context) {
+        if !cover::AVAILABLE || !self.draft.cover_strip {
+            return;
+        }
+        // Opened once the strip has been found, and kept: opening a window again can take
+        // focus from the game.
+        if self.strip_place.is_none() && self.cover_sent.is_none() {
+            return;
+        }
+        // Checked each pass, before the cover is placed: a window that captures would see
+        // must never sit on the strip. Before the window first opens this is false, so it
+        // opens parked.
+        let hidden_from_capture = cover::hide_from_capture();
+        if hidden_from_capture != self.cover_hidden_from_capture {
+            crate::diag::log(if hidden_from_capture {
+                "strip cover: left out of screen captures"
+            } else {
+                "strip cover: not left out of screen captures, so kept off the strip"
+            });
+            self.cover_hidden_from_capture = hidden_from_capture;
+        }
+        let out_of_sight = self.draft.hide_when_unfocused && matches!(self.wow_view, WowView::Hidden);
+        let place = self.strip_place.filter(|_| self.cover_hidden_from_capture && !out_of_sight);
+        let pos = place.map_or(egui::pos2(OFF_SCREEN, OFF_SCREEN), |rect| egui::pos2(rect[0], rect[1]));
+        let size = place.map_or([256.0, 36.0], |rect| [rect[2], rect[3]]);
+        let builder = ViewportBuilder::default()
+            .with_title(cover::TITLE)
+            .with_decorations(false)
+            .with_always_on_top()
+            .with_taskbar(false)
+            .with_active(false)
+            .with_mouse_passthrough(true)
+            .with_resizable(false)
+            .with_position(egui::pos2(OFF_SCREEN, OFF_SCREEN))
+            .with_inner_size(size);
+        if self.cover_sent != Some(pos) {
+            ctx.send_viewport_cmd_to(cover_id(), ViewportCommand::OuterPosition(pos));
+            ctx.send_viewport_cmd_to(cover_id(), ViewportCommand::InnerSize(egui::vec2(size[0], size[1])));
+            self.cover_sent = Some(pos);
+        }
+        let shown = show_window(ctx, cover_id(), builder, |root, _class| {
+            egui::CentralPanel::default().frame(egui::Frame::NONE.fill(COVER_COLOR)).show(root, |_| {});
+        });
+        if !shown || !self.cover_hidden_from_capture {
+            // The window may not be up yet in its first pass: tried again shortly.
+            ctx.request_repaint_after(std::time::Duration::from_millis(200));
+        }
     }
 
     /// The lines the overlay holds, to scroll through and select text from.
@@ -1410,6 +1486,7 @@ impl eframe::App for TranslateApp {
         // A copy started only to be pictured must not put a second overlay over the game.
         if std::env::var_os("TRANSLATE_SHOTS").is_none() {
             self.overlay(&ctx);
+            self.strip_cover(&ctx);
         }
         self.reply_box(&ctx);
         self.undo_question(&ctx);

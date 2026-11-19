@@ -182,6 +182,8 @@ pub struct Config {
     /// game's chat window behind it draws a background of its own, so none is the default,
     /// but a darker one helps over a bright scene.
     pub anchored_opacity: f32,
+    /// Cover the pixel strip with a dark window that screen captures leave out (Windows).
+    pub cover_strip: bool,
     /// Hide the locked overlay while another window is in front of WoW.
     pub hide_when_unfocused: bool,
 }
@@ -211,6 +213,7 @@ impl Default for Config {
             show_original: false,
             anchor_tab: String::new(),
             anchored_opacity: 0.0,
+            cover_strip: true,
             hide_when_unfocused: true,
         }
     }
