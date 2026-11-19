@@ -182,6 +182,12 @@ pub struct Config {
     /// game's chat window behind it draws a background of its own, so none is the default,
     /// but a darker one helps over a bright scene.
     pub anchored_opacity: f32,
+    /// Text size of the overlay on a chat tab; 0 takes the tab's own.
+    pub anchored_font_size: f32,
+    /// Width and height of the overlay on a chat tab; 0 takes the tab's own. The overlay
+    /// keeps the tab's bottom-left corner, where chat lines start.
+    pub anchored_width: f32,
+    pub anchored_height: f32,
     /// Cover the pixel strip with a dark window that screen captures leave out (Windows).
     pub cover_strip: bool,
     /// Hide the locked overlay while another window is in front of WoW.
@@ -213,6 +219,9 @@ impl Default for Config {
             show_original: false,
             anchor_tab: String::new(),
             anchored_opacity: 0.0,
+            anchored_font_size: 0.0,
+            anchored_width: 0.0,
+            anchored_height: 0.0,
             cover_strip: true,
             hide_when_unfocused: true,
         }

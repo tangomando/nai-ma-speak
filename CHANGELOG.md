@@ -41,6 +41,10 @@ HDR output (`HDROutput 1`): a capture of the game comes back brightened, and the
   `/tr /window <name>` for the player to paste into chat.
 - **Background opacity on a chat tab:** an anchored overlay has its own background opacity (`anchored_opacity` in
   `config.json`), none by default as before.
+- **Text size, width and height on a chat tab:** each follows the tab, as before, until its box is unticked; then a
+  slider sets it, starting from the tab's value (`anchored_font_size`, `anchored_width`, `anchored_height`, 0 to
+  follow). A size of its own keeps the tab's bottom-left corner, where chat lines start, and grows up and to the
+  right. The reply box is placed by the overlay's fitted size too.
 - **A smaller strip:** blocks are 2 physical pixels instead of 4, so the strip is 128 x 18 pixels instead of 256 x 36,
   a quarter of the area, and carries as much per frame. The finder measures the block size, so either size is read;
   placing the overlay on a chat tab uses `strip::BLOCK` and needs the addon and the companion from the same version.
@@ -73,7 +77,7 @@ HDR output (`HDROutput 1`): a capture of the game comes back brightened, and the
 - Switching with `/tr /window`: the game switched to another window and the companion's picker followed.
 - Strip cover: the window sits exactly over the strip (0,0, 256x36) with display affinity 0x11, and the strip is
   read through it. A test window marked the same way vanished from a GDI capture of the screen.
-- `cargo test --locked` (71 tests, 8 new) and `cargo clippy --all-targets` clean on Windows. Addon tests pass under
+- `cargo test --locked` (72 tests, 9 new) and `cargo clippy --all-targets` clean on Windows. Addon tests pass under
   Lua 5.4 with `unpack = table.unpack`; this machine has no Lua 5.1.
 - **Not yet checked:** the always-dimmed strip in the game (the HDR fix was checked with the version that dimmed it
   only under HDR), the macOS build with these changes, and retail.

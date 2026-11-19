@@ -303,6 +303,19 @@ fn slider<N: egui::emath::Numeric>(ui: &mut egui::Ui, name: &str, value: &mut N,
     ui.add(egui::Slider::new(value, range));
 }
 
+/// A setting that follows the chat tab while 0: a box ticked to follow, and once unticked
+/// a slider, starting from `own`, the tab's value.
+fn follow_or_set(ui: &mut egui::Ui, name: &str, value: &mut f32, own: f32, range: std::ops::RangeInclusive<f32>) {
+    let mut follow = *value <= 0.0;
+    let label = format!("{name} from the chat tab");
+    if ui.checkbox(&mut follow, label).changed() {
+        *value = if follow { 0.0 } else { own.clamp(*range.start(), *range.end()) };
+    }
+    if !follow {
+        slider(ui, name, value, range);
+    }
+}
+
 /// The command that has the addon copy the chat window `name` to the overlay, or all chat
 /// for an empty name.
 fn source_command(name: &str) -> String {
@@ -655,7 +668,7 @@ impl TranslateApp {
         if !self.reply_box {
             return;
         }
-        let window = layout::anchor(&self.chat_windows, &self.draft.anchor_tab).map(|window| window.rect);
+        let window = self.anchored_overlay().map(|window| window.rect);
         let area = window.or(self.overlay_rect.map(|r| [r.min.x, r.min.y, r.width(), r.height()]));
         let width = area.map_or(520.0, |area| area[2].clamp(380.0, 720.0));
         let mut builder = ViewportBuilder::default()
@@ -1144,7 +1157,17 @@ impl TranslateApp {
             if let Some(problem) = self.anchor_status() {
                 ui.label(RichText::new(problem).color(theme::MUTED));
             }
-            slider(ui, "Background opacity", &mut self.draft.anchored_opacity, 0.0..=1.0);
+            // Each follows the tab until set: unticking starts from the tab's own value.
+            let own = layout::anchor(&self.chat_windows, &self.draft.anchor_tab).cloned();
+            let own = |pick: fn(&ChatWindow) -> f32, fallback: f32| own.as_ref().map_or(fallback, pick).round();
+            let draft = &mut self.draft;
+            follow_or_set(ui, "Text size", &mut draft.anchored_font_size, own(|w| w.font_size, 15.0), 8.0..=48.0);
+            follow_or_set(ui, "Overlay width", &mut draft.anchored_width, own(|w| w.rect[2], 520.0), 200.0..=2400.0);
+            follow_or_set(ui, "Overlay height", &mut draft.anchored_height, own(|w| w.rect[3], 260.0), 80.0..=1600.0);
+            if draft.anchored_width > 0.0 || draft.anchored_height > 0.0 {
+                ui.label(RichText::new("A size of its own keeps the tab's bottom-left corner and grows up and to the right.").color(theme::MUTED));
+            }
+            slider(ui, "Background opacity", &mut draft.anchored_opacity, 0.0..=1.0);
         } else {
             let label = if self.locked { "Unlock overlay to move it" } else { "Lock overlay" };
             if ui.add(theme::button(label)).clicked() {
@@ -1327,9 +1350,17 @@ impl TranslateApp {
         }
     }
 
+    /// The overlay's place and text size on its chat tab, with the sizes set on the Overlay
+    /// tab in place of the tab's own. None while it is not on a tab.
+    fn anchored_overlay(&self) -> Option<ChatWindow> {
+        let draft = &self.draft;
+        layout::anchor(&self.chat_windows, &draft.anchor_tab)
+            .map(|window| layout::fitted(window, draft.anchored_width, draft.anchored_height, draft.anchored_font_size))
+    }
+
     fn overlay(&mut self, ctx: &egui::Context) {
         // On a chat tab the overlay takes that window's place, size and font size.
-        let anchor = layout::anchor(&self.chat_windows, &self.draft.anchor_tab).cloned();
+        let anchor = self.anchored_overlay();
         let size = match &anchor {
             Some(window) => [window.rect[2].max(40.0), window.rect[3].max(20.0)],
             None => [self.draft.overlay_width, self.draft.overlay_height],
