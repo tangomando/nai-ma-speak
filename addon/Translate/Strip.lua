@@ -16,7 +16,7 @@ local _, ns = ...
 -- every color on the way to the companion; it reads a block by finding the
 -- palette color it looks like, so it need not know what was changed.
 local COLS, ROWS = 64, 8 -- of the frame; the palette row comes after
-local BLOCK = 4 -- physical screen pixels per block side
+local BLOCK = 2 -- physical screen pixels per block side: the strip is 128 x 18 pixels
 local SYNC = { 51, 15, 60 } -- (3,0,3) magenta, (0,3,3) cyan, (3,3,0) yellow
 local CAPACITY = math.floor((COLS * ROWS - #SYNC) / 4) * 3
 local MAX_TEXT = CAPACITY - 5

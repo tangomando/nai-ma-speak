@@ -1219,7 +1219,7 @@ impl TranslateApp {
         let out_of_sight = self.draft.hide_when_unfocused && matches!(self.wow_view, WowView::Hidden);
         let place = self.strip_place.filter(|_| self.cover_hidden_from_capture && !out_of_sight);
         let pos = place.map_or(egui::pos2(OFF_SCREEN, OFF_SCREEN), |rect| egui::pos2(rect[0], rect[1]));
-        let size = place.map_or([256.0, 36.0], |rect| [rect[2], rect[3]]);
+        let size = place.map_or([128.0, 18.0], |rect| [rect[2], rect[3]]);
         let builder = ViewportBuilder::default()
             .with_title(cover::TITLE)
             .with_decorations(false)

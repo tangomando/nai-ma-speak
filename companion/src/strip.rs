@@ -17,9 +17,13 @@ pub const COLS: usize = 64;
 /// Rows of the frame; the palette row comes after them.
 pub const ROWS: usize = 8;
 const SYNC: [u8; 3] = [51, 15, 60];
-/// The smallest block side the finder accepts, in pixels. Strip.lua draws 4 physical
-/// pixels; 2 leaves room for a capture taken at half the screen's resolution.
-const MIN_BLOCK: u32 = 2;
+/// The side of a block in physical screen pixels, as Strip.lua draws it: the strip is
+/// 128 x 18 pixels. It was 4, which is 256 x 36; the finder measures the size, so either
+/// is read, but placing the overlay on a chat tab needs this to match the addon.
+pub const BLOCK: u32 = 2;
+/// The smallest block side the finder accepts, in pixels: the size the addon draws.
+/// Colorful scenery passes for the sync colors in runs of 1 pixel all the time.
+const MIN_BLOCK: u32 = BLOCK;
 
 /// Where the strip sits in an image, in pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -767,6 +771,20 @@ mod tests {
         symbols[3] = 60;
         let img = paint(&symbols, (0, 58), 4);
         assert_eq!(find(&img).map(|lock| lock.block), Some(4));
+    }
+
+    /// The strip as the addon draws it now: blocks of BLOCK pixels at half brightness, seen
+    /// through a display's color profile and through HDR's brightening.
+    #[test]
+    fn reads_the_small_dimmed_strip() {
+        let text = "7\t[Party] 奶媽\t副本缺補 密我";
+        let at = (0, 0);
+        let drawn = scaled(&paint(&encode(9, text), at, BLOCK), 0.5);
+        for seen in [through_a_display(&drawn), scaled(&drawn, 1.75)] {
+            let lock = find(&seen).expect("strip found");
+            assert_eq!(lock, Lock { x: at.0, y: at.1, block: BLOCK });
+            assert!(matches!(decode(&seen, lock), Decoded::Frame(f) if f.text == text));
+        }
     }
 
     /// Scenery with one-pixel specks of the sync colors in a row is not taken for a strip.
