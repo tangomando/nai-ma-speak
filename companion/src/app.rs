@@ -148,6 +148,8 @@ pub struct TranslateApp {
     /// The chat window the addon copies to the overlay, empty for all chat; None until an
     /// addon that reports it has said.
     source_window: Option<String>,
+    /// The glossary's lines, those given to the game, and the addon folder written to.
+    glossary: Option<(usize, usize, Option<std::path::PathBuf>)>,
     /// Where the strip is on screen, in points, while it is found.
     strip_place: Option<crate::focus::Rect>,
     /// Whether the strip cover window has been left out of screen captures; until then it
@@ -303,6 +305,16 @@ fn slider<N: egui::emath::Numeric>(ui: &mut egui::Ui, name: &str, value: &mut N,
     ui.add(egui::Slider::new(value, range));
 }
 
+/// See `TranslateApp::wheel_window`. `source` is the chat window the addon copies, empty
+/// for all chat.
+fn wheel_window(windows: &[ChatWindow], anchor_tab: &str, source: Option<&str>) -> Option<String> {
+    if let Some(window) = layout::anchor(windows, anchor_tab) {
+        return Some(window.name.clone());
+    }
+    let copied = source.filter(|name| !name.is_empty()).and_then(|name| windows.iter().find(|window| window.name == name));
+    copied.or_else(|| windows.iter().find(|window| window.shown)).map(|window| window.name.clone())
+}
+
 /// A setting that follows the chat tab while 0: a box ticked to follow, and once unticked
 /// a slider, starting from `own`, the tab's value.
 fn follow_or_set(ui: &mut egui::Ui, name: &str, value: &mut f32, own: f32, range: std::ops::RangeInclusive<f32>) {
@@ -363,6 +375,7 @@ impl TranslateApp {
             font_texture_stale: false,
             chat_windows: Vec::new(),
             source_window: None,
+            glossary: None,
             strip_place: None,
             cover_hidden_from_capture: false,
             cover_sent: None,
@@ -535,6 +548,7 @@ impl TranslateApp {
                     self.chat_windows = windows;
                 }
                 UiEvent::StripPlace(place) => self.strip_place = place,
+                UiEvent::Glossary { lines, in_game, folder } => self.glossary = Some((lines, in_game, folder)),
                 UiEvent::SourceWindow(name) => {
                     if self.source_window.as_ref() != Some(&name) {
                         crate::diag::log(format!("source window: {:?}", if name.is_empty() { "all chat" } else { &name }));
@@ -545,9 +559,8 @@ impl TranslateApp {
                     // The first count only sets the starting point: its steps were made
                     // before the companion was watching.
                     let before = self.wheel_counts.insert(name.clone(), count);
-                    let anchored = layout::anchor(&self.chat_windows, &self.draft.anchor_tab);
-                    if let (Some(before), Some(window)) = (before, anchored) {
-                        if window.name == name {
+                    if let (Some(before), Some(follows)) = (before, self.wheel_window()) {
+                        if follows == name {
                             self.wheel_steps += (count - before) as f32;
                         }
                     }
@@ -1119,6 +1132,7 @@ impl TranslateApp {
         slider(ui, "Lines kept (scrollback)", &mut self.draft.max_lines, 1..=500);
 
         self.source_picker(ui);
+        self.glossary_settings(ui);
         if cover::AVAILABLE {
             ui.checkbox(&mut self.draft.cover_strip, "Cover the pixel strip")
                 .on_hover_text("Puts a dark patch over the strip in the top-left corner. You see the patch; the companion still reads the strip, since screen captures leave the patch out.");
@@ -1181,6 +1195,29 @@ impl TranslateApp {
             slider(ui, "Background opacity", &mut self.draft.overlay_opacity, 0.0..=1.0);
             slider(ui, "Text size", &mut self.draft.font_size, 10.0..=32.0);
         }
+    }
+
+    /// The glossary: whether translations are remembered, how many are, and the addon
+    /// folder they are written to for the game's chat.
+    fn glossary_settings(&mut self, ui: &mut egui::Ui) {
+        ui.label(theme::label("Glossary"));
+        ui.checkbox(&mut self.draft.remember_translations, "Remember translations")
+            .on_hover_text("Keep each translated chat line, and answer it from memory when it is said again: at once, without asking the backend. Lines said twice or more also go to the game's chat, with the WoW terms.");
+        let note = match &self.glossary {
+            None => "Reading the glossary.".to_string(),
+            Some((lines, in_game, Some(folder))) => format!(
+                "{lines} lines remembered, {in_game} said often enough to show in the game's chat. Written to {}; /reload in the game to load new ones.",
+                folder.display()
+            ),
+            Some((lines, _, None)) => format!(
+                "{lines} lines remembered. The addon's folder was not found, so the game's chat gets none: set it below."
+            ),
+        };
+        ui.label(RichText::new(note).color(theme::MUTED));
+        ui.label(theme::label("Addon folder (empty to find it)"));
+        ui.add(egui::TextEdit::singleline(&mut self.draft.addon_folder).desired_width(ui.available_width()).hint_text(
+            r"…\World of Warcraft\_forever_\Interface\AddOns\Translate",
+        ));
     }
 
     /// Which chat window the overlay gets the lines of. The choice lives in the game: the
@@ -1348,6 +1385,13 @@ impl TranslateApp {
             None if self.chat_windows.is_empty() => Some("Waiting for the addon to report the chat tabs.".into()),
             None => Some("The game has no such tab now, so the overlay is placed by hand.".into()),
         }
+    }
+
+    /// The chat window whose mouse wheel scrolls the overlay. The overlay lets clicks and
+    /// the wheel through to the game, so it follows a chat window's scrolling instead: the
+    /// tab it sits on; placed by hand, the window it copies, or else the tab on show.
+    fn wheel_window(&self) -> Option<String> {
+        wheel_window(&self.chat_windows, &self.draft.anchor_tab, self.source_window.as_deref())
     }
 
     /// The overlay's place and text size on its chat tab, with the sizes set on the Overlay
@@ -1547,6 +1591,18 @@ impl eframe::App for TranslateApp {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The overlay scrolls with the tab it sits on; placed by hand, with the window it
+    /// copies, or else the tab on show.
+    #[test]
+    fn the_overlay_scrolls_with_the_right_chat_window() {
+        let window = |name: &str, shown| ChatWindow { name: name.into(), shown, rect: [0.0; 4], font_size: 14.0 };
+        let windows = [window("General", true), window("Quiet", false)];
+        assert_eq!(wheel_window(&windows, "quiet", Some("General")).as_deref(), Some("Quiet"), "anchored");
+        assert_eq!(wheel_window(&windows, "", Some("Quiet")).as_deref(), Some("Quiet"), "the copied window");
+        assert_eq!(wheel_window(&windows, "", Some("")).as_deref(), Some("General"), "all chat: the tab on show");
+        assert_eq!(wheel_window(&windows, "", None).as_deref(), Some("General"));
+    }
 
     /// Core.lua's /tr /window command takes these: a window's name, or "all".
     #[test]

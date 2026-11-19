@@ -62,7 +62,7 @@ EventRegistry = {
 
 -- Load the addon as the game does, in the order of Translate.toc, and log in.
 local ns = {}
-for _, file in ipairs({ "Core.lua", "Strip.lua", "Chat.lua", "Layout.lua", "Buttons.lua", "Options.lua" }) do
+for _, file in ipairs({ "Core.lua", "Glossary.lua", "Strip.lua", "Chat.lua", "Layout.lua", "Buttons.lua", "Options.lua" }) do
     assert(loadfile(ADDON .. file))("Translate", ns)
 end
 ns.handlers.ADDON_LOADED("Translate")
@@ -135,6 +135,7 @@ TranslateDB.allLines = true
 
 -- [T] links ------------------------------------------------------------------------------
 
+TranslateDB.glossary = false -- its notes are checked on their own below
 local asked, withLink = Chat("CHAT_MSG_GUILD", "缺補")
 local _, plainLine = Chat("CHAT_MSG_SAY", "no link here")
 Check("a Chinese line gets its two links", withLink,
@@ -164,6 +165,10 @@ Check("a line no window shows any more says so", #printed, 1)
 TranslateDB.showLinks = false
 local _, unlinked = Chat("CHAT_MSG_GUILD", "缺坦")
 Check("no links with the option off", unlinked, "缺坦")
+TranslateDB.glossary = true
+local _, glossed = Chat("CHAT_MSG_GUILD", "缺坦")
+Check("with the glossary on, a term gets its note and no links with them off", glossed,
+    "缺坦|Haddon:Translate:G:" .. tostring(glossed:match("G:(%d+)")) .. "|h|cff9d9d9d(need a tank)|r|h")
 TranslateDB.showLinks = true
 Frames()
 
@@ -309,6 +314,17 @@ Check("SLASH aliases", SLASH_TRANSLATE1 .. " " .. SLASH_TRANSLATE3, "/tr /nms")
 local numbers = {}
 for _, n in ipairs({ 1, 9, 10, 11, 20, 21, 99 }) do numbers[#numbers + 1] = ns.ChineseNumber(n) end
 Check("Chinese numbers", table.concat(numbers, " "), "一 九 十 十一 二十 二十一 九十九")
+
+-- The glossary: notes after WoW terms, and a whole line's English for a line said often.
+local function Notes(text) return (text:gsub("|Haddon:Translate:G:%d+|h|cff9d9d9d(%b())|r|h", "%1")) end
+ns.GLOSSARY_LINES["等我一下"] = "Wait for me a moment"
+Check("terms get their English after them", Notes(ns.Gloss("缺坦來個戰士", 5)),
+    "缺坦" .. "(" .. ns.GLOSSARY_TERMS["缺坦"] .. ")" .. "來個戰士(" .. ns.GLOSSARY_TERMS["戰士"] .. ")")
+Check("a line said often gets its whole English", Notes(ns.Gloss(" 等我一下 ", 5)), " 等我一下  (Wait for me a moment)")
+Check("a Latin term only as a whole word", Notes(ns.Gloss("adds DD", 5)), "adds DD(" .. ns.GLOSSARY_TERMS["DD"] .. ")")
+local link = "|cffa335ee|Hitem:19019::::|h[戰士之劍]|h|r"
+Check("links and colors are left alone", Notes(ns.Gloss(link .. "缺坦", 5)), link .. "缺坦(" .. ns.GLOSSARY_TERMS["缺坦"] .. ")")
+Check("the notes are taken out of a copied line", (ns.Gloss("缺坦", 5):gsub(" *|Haddon:Translate:%a:%d+|h.-|h", "")), "缺坦")
 
 -- Choosing the copied chat window, as the companion's picker has the player paste.
 local before = ns.db.sourceWindow

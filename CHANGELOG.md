@@ -39,6 +39,9 @@ HDR output (`HDROutput 1`): a capture of the game comes back brightened, and the
 - **Chat to translate:** a picker on the Overlay tab, whether or not the overlay is anchored, shows which chat window
   the game sends to the overlay, or all chat. The companion cannot reach the game, so picking another copies
   `/tr /window <name>` for the player to paste into chat.
+- **Scrolling a hand-placed overlay:** the mouse wheel over the chat window the overlay copies (or the tab on show,
+  for all chat) scrolls it, as the wheel over its tab already did for an anchored overlay. Clicks pass through the
+  overlay to the game, so it cannot take the wheel itself.
 - **Background opacity on a chat tab:** an anchored overlay has its own background opacity (`anchored_opacity` in
   `config.json`), none by default as before.
 - **Text size, width and height on a chat tab:** each follows the tab, as before, until its box is unticked; then a
@@ -54,6 +57,23 @@ HDR output (`HDROutput 1`): a capture of the game comes back brightened, and the
   after the system confirms it is left out of captures; this is checked on every pass, so a cover that captures would
   see never hides the strip. It goes away with the strip and while WoW is out of sight. Not on macOS yet
   (`NSWindow.sharingType = .none` would be the counterpart, but ScreenCaptureKit may not honor it).
+
+### Glossary
+
+- **Remembered translations:** each chat line the companion translates is kept in `glossary.json` beside the
+  settings (up to 5000 lines of 60 characters or fewer; the least used go first). A line said again is answered from
+  there first: at once, with no request to the backend, and across restarts. "Remember translations" on the Overlay
+  tab turns it off; test lines are never remembered.
+- **In the game's chat:** the companion writes `Glossary.lua` into the addon's folder (found beside the companion,
+  in the usual WoW folders, or set on the Overlay tab), at most every 20 s and only when it changed: the 500 terms of
+  the slang and place lists in both scripts (760 entries) and the lines seen at least twice. The addon reads it at login
+  or `/reload`, and its chat filter adds the English in grey: the whole line's for a remembered line, or else after up
+  to 6 WoW terms, longest match first, Latin terms only as whole words. Links, colors and icons are left alone.
+- The notes are addon links of kind G, which do nothing when clicked and are stripped from a line before it is copied
+  to the overlay, so the translator never sees them. On by default; `/tr /glossary` or the options turn them off.
+- The addon ships `Glossary.lua` with the terms and no lines; a test keeps it in step with the slang lists
+  (`translate-companion --write-glossary ../addon/Translate/Glossary.lua` rewrites it). **Adding a file to the toc
+  needs a full restart of the game client once; `/reload` is not enough for that.**
 
 ### Addon
 
@@ -80,7 +100,8 @@ HDR output (`HDROutput 1`): a capture of the game comes back brightened, and the
 - Switching with `/tr /window`: the game switched to another window and the companion's picker followed.
 - Strip cover: the window sits exactly over the strip (0,0, 256x36) with display affinity 0x11, and the strip is
   read through it. A test window marked the same way vanished from a GDI capture of the screen.
-- `cargo test --locked` (72 tests, 9 new) and `cargo clippy --all-targets` clean on Windows. Addon tests pass under
+- `cargo test --locked` (77 tests, 14 new) and `cargo clippy --all-targets` clean on Windows. Addon tests pass under
   Lua 5.4 with `unpack = table.unpack`; this machine has no Lua 5.1.
-- **Not yet checked:** the always-dimmed strip in the game (the HDR fix was checked with the version that dimmed it
+- **Not yet checked:** the glossary notes in the game's chat and a line learned from translation reaching it, the
+  scrolling of a hand-placed overlay in the game, the always-dimmed strip in the game (the HDR fix was checked with the version that dimmed it
   only under HDR), the macOS build with these changes, and retail.

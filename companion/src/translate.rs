@@ -84,6 +84,12 @@ pub fn to_taiwanese(text: &str) -> String {
     S2TWP.get_or_init(|| converter(BuiltinConfig::S2twp)).convert(text)
 }
 
+/// Every term of the slang and place lists as written there, with its English: for the
+/// addon's glossary, which writes each in both scripts.
+pub fn terms() -> impl Iterator<Item = (&'static str, &'static str)> {
+    slang_pairs(SLANG_ZH_CN).chain(slang_pairs(SLANG_ZH_TW)).chain(slang_pairs(PLACES))
+}
+
 /// Both slang lists keyed by the term in Simplified characters and lower-case Latin
 /// letters, so one lookup serves lines in either script and either case. A term in both
 /// lists keeps its mainland entry.

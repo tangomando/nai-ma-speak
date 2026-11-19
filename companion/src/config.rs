@@ -190,6 +190,10 @@ pub struct Config {
     pub anchored_height: f32,
     /// Cover the pixel strip with a dark window that screen captures leave out (Windows).
     pub cover_strip: bool,
+    /// Keep each translated chat line in the glossary, and answer lines seen before from it.
+    pub remember_translations: bool,
+    /// The addon's folder, for writing the glossary there; empty to find it.
+    pub addon_folder: String,
     /// Hide the locked overlay while another window is in front of WoW.
     pub hide_when_unfocused: bool,
 }
@@ -223,6 +227,8 @@ impl Default for Config {
             anchored_width: 0.0,
             anchored_height: 0.0,
             cover_strip: true,
+            remember_translations: true,
+            addon_folder: String::new(),
             hide_when_unfocused: true,
         }
     }

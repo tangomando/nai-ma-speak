@@ -67,6 +67,10 @@ local function Build()
 
     Checkbox("allLines", "Include lines without Chinese",
         "Also send lines without Chinese. The overlay shows them untranslated, in order with the translated ones.")
+    Checkbox("glossary", "Glossary notes in chat",
+        "After WoW terms in Chinese chat, add their English in grey: 缺坦 (need tank). A line said often gets its whole "
+        .. "English, from translations the companion remembers. The companion adds to the glossary as it translates; "
+        .. "/reload to load what it has added.")
     Checkbox("showLinks", "[T], [?] and [?N] links after chat lines",
         "Add links after lines in the game's chat windows. After a Chinese message: [T] sends it to the overlay "
         .. "to be translated again, for a line that scrolled away or was dropped when chat was too busy, and "

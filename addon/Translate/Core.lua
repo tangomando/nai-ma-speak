@@ -18,6 +18,7 @@ end)
 local DEFAULTS = {
     allLines = true,  -- also send lines without Chinese, shown untranslated in the overlay
     showLinks = true, -- add links after chat lines: translate again, explain, explain the name
+    glossary = true,  -- add the glossary's English after WoW terms and lines said often, in the chat window
     sourceWindow = "", -- tab name of the chat window whose settings pick the lines sent; "" sends all
     repeatLines = 50, -- how many of the last chat lines the strip shows again while nothing new waits
     buttons = "tabs", -- where the Translate and App buttons sit: "tabs", "top", "bottom" or "hidden"
@@ -66,6 +67,7 @@ local function ShowHelp()
     ns.Print("/tr /name  explain your target's name in the overlay, or /tr /name 黑熊 for one you type")
     ns.Print("/tr /options  open the options (also under Options > AddOns)")
     ns.Print("/tr /window General  have the overlay copy that chat window, or /tr /window all for all chat")
+    ns.Print("/tr /glossary  toggle the glossary's English after WoW terms and common lines in chat")
     ns.Print("/tr /all  toggle showing lines without Chinese in the overlay too")
     ns.Print("/tr /test  say a Chinese test line to check the strip and overlay")
     ns.Print("/tr /test 10  send that many made-up chat lines (party, guild, raid, whispers, class-colored names) to the overlay only (at most " .. TEST_MOST .. ")")
@@ -101,6 +103,11 @@ local commands = {
             end
         end
         ns.Print("No chat window named " .. wanted .. ". There are: " .. table.concat(ns.ChatWindowNames(), ", ") .. ".")
+    end,
+    glossary = function()
+        ns.db.glossary = not ns.db.glossary
+        ns.Print("Glossary notes in chat " .. (ns.db.glossary and "on." or "off.")
+            .. " They show on new lines.")
     end,
     all = function()
         ns.db.allLines = not ns.db.allLines

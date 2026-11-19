@@ -45,11 +45,12 @@ Reading the strip is screen capture: it only reads pixels and never sends input 
 - **Learn from the chat.** Chinese lines in the game's chat windows also end in a `[?]` link. Clicking it explains the line in the overlay: each word followed by how it is read, in pinyin or bopomofo, and what it means, then the whole line in English and, when there is one, a note on its grammar. It needs Claude or an OpenAI-compatible model; Google Translate cannot do it.
 - **Player names.** With "Translate player names" on, a Chinese name is followed by what it means in English, or how it sounds if it means nothing. A `[?N]` link after a line explains its speaker's name: what it says and what it plays on. Names of players seen speaking stay in Chinese inside translated lines, so you can still tell who is meant.
 - **Links in your language.** A linked quest, item, spell or achievement shows the name its sender's game gave it. The addon asks your own game for the name instead, so links arrive in English exactly as your client names them. A link the game has not loaded yet is translated word for word, and corrected within seconds, once the game knows the name.
+- **Glossary in the game's chat.** Without the overlay, Chinese chat gets the English of WoW terms after them, in grey: 缺坦 (need a tank). The companion remembers every line it translates (`glossary.json`), answers a line said again from memory at once, without asking the backend, and gives lines said twice or more to the addon (`Glossary.lua` in its folder), which then shows their whole English after them after a `/reload`. Turn the notes off with `/tr /glossary` or in the addon's options, and the remembering under Overlay in the companion.
 - **Slang and place hints.** The chat models are told whether you play on a Taiwanese or a mainland server, so whose slang to expect. They are also told the WoW slang found in each line (缺補, 坦, 副本...), from a list of mainland and Taiwanese terms, and the English names of the classic world's zones, towns, dungeons and raids, with the short forms players type. Google Translate takes no hints.
 - **In-game buttons.** "Translate" and "App" buttons on the chat window open the reply box and the companion app's window.
 - **Translate again on request.** Chinese lines in the game's own chat windows end in a `[T]` link. Clicking it sends that line to the overlay again, ahead of everything waiting, marked "[On request]": for a line that scrolled away, or was dropped when chat was too busy.
 - **Catching up.** While chat is quiet the addon keeps sending its last 50 chat lines again (the count is in the addon's options). Lines the companion missed, because another window covered the game or the companion was not running, appear in the overlay in their place within seconds; lines it has are not shown twice.
-- **Scrollback.** With the overlay on a chat tab, the mouse wheel over that tab scrolls the overlay.
+- **Scrollback.** The mouse wheel over the game's chat scrolls the overlay: over the tab it sits on, or, placed by hand, over the chat window it copies (the tab on show for all chat), so lines that went by fast can be read again.
 - **Chat history.** The companion keeps the recent lines in a tab where text can be selected and copied. Restarting the companion brings back the lines of the last ten minutes.
 
 ## Install
@@ -112,6 +113,7 @@ The same from the chat box, where `/nms` works in place of `/tr`:
 | `/tr /name` | Explain your target's name in the overlay; `/tr /name 黑熊` for one you type |
 | `/tr /options` | Open the addon's options |
 | `/tr /window General` | Have the overlay copy that chat window; `/tr /window all` for all chat. The companion's "Chat to translate" picker copies this command for you |
+| `/tr /glossary` | Turn the glossary's English after WoW terms and common lines in chat on or off |
 | `/tr /all` | Toggle lines without Chinese in the overlay |
 | `/tr /test` | Say a Chinese test line in `/say` to check the strip and overlay |
 | `/tr /test 10` | Send that many made-up chat lines to the overlay only: party, guild, raid, say, yell, whispers and a channel, from Chinese-named players in class colors, one with an item link |

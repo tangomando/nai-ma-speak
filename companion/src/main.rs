@@ -10,6 +10,7 @@ mod diag;
 mod explain;
 mod focus;
 mod fonts;
+mod glossary;
 mod layout;
 mod markup;
 mod names;
@@ -85,6 +86,14 @@ fn game_shot(path: &std::path::Path) -> Result<(), String> {
 fn main() -> eframe::Result {
     // `translate-companion --decode shot.png` reads a strip from a screenshot.
     let args: Vec<String> = std::env::args().collect();
+    // `translate-companion --write-glossary Glossary.lua` writes the addon's glossary with
+    // the terms only, as the addon ships it.
+    if args.len() == 3 && args[1] == "--write-glossary" {
+        if let Err(e) = std::fs::write(&args[2], glossary::lua(&[])) {
+            eprintln!("could not write {}: {e}", args[2]);
+        }
+        return Ok(());
+    }
     if args.len() == 3 && args[1] == "--decode" {
         decode_file(&args[2]);
         return Ok(());
@@ -129,8 +138,10 @@ fn main() -> eframe::Result {
             let (strip_tx, strip_rx) = mpsc::channel();
             let (interactive_tx, interactive_rx) = mpsc::channel();
 
-            worker::spawn(config.clone(), strip_rx, ui.clone(), clip_tx.clone());
-            worker::spawn(config.clone(), interactive_rx, ui.clone(), clip_tx);
+            let glossary = glossary::shared();
+            worker::spawn(config.clone(), strip_rx, ui.clone(), clip_tx.clone(), glossary.clone());
+            worker::spawn(config.clone(), interactive_rx, ui.clone(), clip_tx, glossary.clone());
+            glossary::spawn_writer(glossary, config.clone(), ui.clone());
             strip::spawn(strip_tx, interactive_tx.clone(), ui.clone());
             focus::spawn(ui.clone());
             clipboard::spawn(clip_rx, ui);

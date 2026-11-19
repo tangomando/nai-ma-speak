@@ -453,11 +453,113 @@ end
 -- Runs before a chat window words and adds the line, so Mirror finds it
 -- remembered. Adds the links to a line with Chinese in its message or in its
 -- speaker's name.
+-- The glossary (Glossary.lua, written by the companion): WoW terms and whole chat lines
+-- with their English, shown after them in the chat window. Each note is a link of kind
+-- G that does nothing when clicked: the addon's links are taken out of a line before it
+-- is copied to the overlay, so the notes never reach the translator.
+local GLOSS_COLOR = "ff9d9d9d"
+local MOST_NOTES = 6 -- notes on one line at most, so a line stays readable
+
+-- Bytes in the UTF-8 character that starts with `byte`.
+local function CharLength(byte)
+    if not byte or byte < 192 then return 1 elseif byte < 224 then return 2 elseif byte < 240 then return 3 end
+    return 4
+end
+
+local termIndex -- first character of a term, lower-cased, to its terms, longest first
+
+local function TermIndex()
+    if termIndex then return termIndex end
+    termIndex = {}
+    for zh, en in pairs(ns.GLOSSARY_TERMS or {}) do
+        local key = zh:lower()
+        local first = key:sub(1, CharLength(key:byte(1)))
+        termIndex[first] = termIndex[first] or {}
+        table.insert(termIndex[first], { key, en })
+    end
+    for _, terms in pairs(termIndex) do
+        table.sort(terms, function(a, b) return #a[1] > #b[1] end)
+    end
+    return termIndex
+end
+
+local function Note(english, lineID)
+    return "|Haddon:" .. addonName .. ":G:" .. lineID .. "|h|c" .. GLOSS_COLOR .. "(" .. english .. ")|r|h"
+end
+
+local function IsWordByte(byte)
+    return byte and ((byte >= 48 and byte <= 57) or (byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122))
+end
+
+-- Notes after the terms in a run of plain text. Chinese has no spaces, so a term may
+-- start at any character; the longest one there wins. A term that starts or ends with
+-- a Latin letter or digit must not carry on into another (DD in "adds").
+local function GlossPlain(text, lineID, budget)
+    local index, lower, out, i, noted = TermIndex(), text:lower(), {}, 1, {}
+    while i <= #text do
+        local found
+        if budget.left > 0 then
+            for _, term in ipairs(index[lower:sub(i, i + CharLength(lower:byte(i)) - 1)] or {}) do
+                local key = term[1]
+                if lower:sub(i, i + #key - 1) == key
+                    and not (IsWordByte(key:byte(1)) and IsWordByte(lower:byte(i - 1)))
+                    and not (IsWordByte(key:byte(-1)) and IsWordByte(lower:byte(i + #key))) then
+                    found = term
+                    break
+                end
+            end
+        end
+        if found then
+            local written = text:sub(i, i + #found[1] - 1)
+            out[#out + 1] = written
+            if not noted[found[2]] then
+                noted[found[2]] = true
+                budget.left = budget.left - 1
+                out[#out + 1] = Note(found[2], lineID)
+            end
+            i = i + #found[1]
+        else
+            -- One whole UTF-8 character.
+            local length = CharLength(text:byte(i))
+            out[#out + 1] = text:sub(i, i + length - 1)
+            i = i + length
+        end
+    end
+    return table.concat(out)
+end
+
+-- The message with the glossary's notes: the English of the whole line, if it was said
+-- often enough for the companion to put it in the glossary, or else notes after the WoW
+-- terms in it. Links, colors and icons are left as they are.
+function ns.Gloss(msg, lineID)
+    local key = Plain(Markup(msg)):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
+    local line = ns.GLOSSARY_LINES and ns.GLOSSARY_LINES[key]
+    if line then return msg .. " " .. Note(line, lineID) end
+    local out, i, budget = {}, 1, { left = MOST_NOTES }
+    while i <= #msg do
+        local bar = msg:find("|", i, true)
+        local plain = msg:sub(i, (bar or #msg + 1) - 1)
+        if plain ~= "" then out[#out + 1] = GlossPlain(plain, lineID, budget) end
+        if not bar then break end
+        -- An escape sequence, copied as it is: a link to its closing |h, a color, an icon.
+        local escape = msg:match("^|H.-|h.-|h", bar) or msg:match("^|c%x%x%x%x%x%x%x%x", bar)
+            or msg:match("^|T.-|t", bar) or msg:match("^|A.-|a", bar) or msg:match("^|K.-|k", bar)
+            or msg:sub(bar, bar + 1)
+        out[#out + 1] = escape
+        i = bar + #escape
+    end
+    return table.concat(out)
+end
+
 local function Filter(_, event, msg, author, ...)
     local lineID, chinese = Capture(event, msg, author, ...)
+    if not lineID or type(msg) ~= "string" or ns.IsSecret(msg) then return false end
     local named = type(author) == "string" and not ns.IsSecret(author) and HasChinese(author)
-    if not lineID or not ns.db.showLinks or not (chinese or named) then return false end
-    return false, msg .. " " .. Links(lineID, chinese, named), author, ...
+    local out = msg
+    if chinese and ns.db.glossary then out = ns.Gloss(msg, lineID) end
+    if ns.db.showLinks and (chinese or named) then out = out .. " " .. Links(lineID, chinese, named) end
+    if out == msg then return false end
+    return false, out, author, ...
 end
 
 function ns.InitChat()

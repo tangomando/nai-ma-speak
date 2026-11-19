@@ -45,6 +45,9 @@ pub enum UiEvent {
     TestResult { result: Result<String, String>, seconds: f32 },
     /// The game's chat windows, in screen points, whenever the addon reports them.
     ChatWindows(Vec<crate::layout::ChatWindow>),
+    /// The glossary's size: lines remembered, those given to the game, and the addon
+    /// folder it is written to, if found.
+    Glossary { lines: usize, in_game: usize, folder: Option<std::path::PathBuf> },
     /// Where the strip is on screen, in points, once found; None once lost.
     StripPlace(Option<crate::focus::Rect>),
     /// The chat window the addon copies to the overlay; empty for all chat.
@@ -132,7 +135,13 @@ pub fn chat_line(id: u64, mut line: ChatLine, handling: Handling) -> (UiEvent, O
 }
 
 /// One thread per queue keeps the chat log from delaying click-to-translate.
-pub fn spawn(config: Arc<Mutex<Config>>, jobs: Receiver<Job>, ui: UiSender, clipboard: Sender<String>) {
+pub fn spawn(
+    config: Arc<Mutex<Config>>,
+    jobs: Receiver<Job>,
+    ui: UiSender,
+    clipboard: Sender<String>,
+    glossary: crate::glossary::Handle,
+) {
     thread::spawn(move || {
         let mut cache: HashMap<String, String> = HashMap::new();
         for job in jobs {
@@ -158,10 +167,28 @@ pub fn spawn(config: Arc<Mutex<Config>>, jobs: Receiver<Job>, ui: UiSender, clip
                 Job::Test => unreachable!("handled above"),
             };
             let key = format!("{:?}|{:?}|{task:?}|{text}", config.backend, (config.server, config.reply_variant));
-            let result = match cache.get(&key).filter(|_| !text.contains(TEST_MARK)) {
-                Some(hit) => Ok(hit.clone()),
+            // A chat line said before is answered from the glossary first, and a new one
+            // goes into it once translated. Test lines are translated afresh every time.
+            let in_glossary = matches!(job, Job::Incoming { .. }) && config.remember_translations && !text.contains(TEST_MARK);
+            let now = crate::backlog::now();
+            let remembered = if in_glossary {
+                let mut shared = glossary.lock().unwrap();
+                let english = shared.glossary.recall(&text, now);
+                shared.changed |= english.is_some();
+                english
+            } else {
+                None
+            };
+            let from_memory = remembered.is_some();
+            let result = match remembered.or_else(|| cache.get(&key).filter(|_| !text.contains(TEST_MARK)).cloned()) {
+                Some(hit) => Ok(hit),
                 None => translate(&config, &text, task, &notify),
             };
+            if let (true, false, Ok(english)) = (in_glossary, from_memory, &result) {
+                let mut shared = glossary.lock().unwrap();
+                shared.glossary.remember(&text, english, now);
+                shared.changed = true;
+            }
             // An explanation that cannot be read counts as a failure, and is not kept.
             let explanation = match (&job, &result) {
                 (Job::Explain { .. }, Ok(answer)) => Some(crate::explain::parse(answer)),
