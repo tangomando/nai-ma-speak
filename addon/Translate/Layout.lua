@@ -47,6 +47,16 @@ local function Describe()
     return "L\t" .. table.concat(records, RECORD)
 end
 
+-- The chat window whose lines are copied to the overlay, as a second line
+-- after the layout: "W\t<name>", with no name for all chat. The companion
+-- shows it beside its picker, which can only hand the player a /tr /window
+-- command to paste.
+function ns.SourceLine()
+    local source = ns.db and ns.db.sourceWindow
+    if type(source) ~= "string" then source = "" end
+    return "W\t" .. source:gsub("[%z\1-\31]", "")
+end
+
 -- Mouse wheel steps over each chat window, counted since login: up adds,
 -- down subtracts. The overlay cannot receive the wheel itself (clicks and
 -- scrolling pass through it to the game), so with the overlay on a chat tab
@@ -88,7 +98,7 @@ function ns.InitLayout()
     local last, sentAt = nil, 0
     local ticker
     ticker = C_Timer.NewTicker(CHECK_TIME, function()
-        local ok, text = pcall(Describe)
+        local ok, text = pcall(function() return Describe() .. "\n" .. ns.SourceLine() end)
         if not ok then
             ns.layoutSource = "failed: " .. tostring(text)
             ns.Print("Could not read the chat windows, so the overlay cannot follow them: " .. tostring(text))

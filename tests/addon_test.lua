@@ -307,6 +307,18 @@ local numbers = {}
 for _, n in ipairs({ 1, 9, 10, 11, 20, 21, 99 }) do numbers[#numbers + 1] = ns.ChineseNumber(n) end
 Check("Chinese numbers", table.concat(numbers, " "), "一 九 十 十一 二十 二十一 九十九")
 
+-- Choosing the copied chat window, as the companion's picker has the player paste.
+local before = ns.db.sourceWindow
+printed = {}
+SlashCmdList.TRANSLATE("/window pick")
+Check("/tr /window picks a window, whatever its case", ns.db.sourceWindow, "Pick")
+Check("and the companion is told", ns.SourceLine(), "W\tPick")
+SlashCmdList.TRANSLATE("/window nowhere")
+Check("a window the game does not have changes nothing", ns.db.sourceWindow, "Pick")
+SlashCmdList.TRANSLATE("/window all")
+Check("all chat again", { ns.db.sourceWindow, ns.SourceLine() }, { "", "W\t" })
+ns.db.sourceWindow = before
+
 if failures > 0 then
     print(failures .. " failed")
     os.exit(1)

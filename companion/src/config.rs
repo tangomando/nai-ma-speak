@@ -178,6 +178,10 @@ pub struct Config {
     pub show_original: bool,
     /// Name of the chat tab the overlay sits on and follows; empty to place it by hand.
     pub anchor_tab: String,
+    /// Background opacity of the overlay on a chat tab, apart from `overlay_opacity`: the
+    /// game's chat window behind it draws a background of its own, so none is the default,
+    /// but a darker one helps over a bright scene.
+    pub anchored_opacity: f32,
     /// Hide the locked overlay while another window is in front of WoW.
     pub hide_when_unfocused: bool,
 }
@@ -206,6 +210,7 @@ impl Default for Config {
             max_lines: 100,
             show_original: false,
             anchor_tab: String::new(),
+            anchored_opacity: 0.0,
             hide_when_unfocused: true,
         }
     }

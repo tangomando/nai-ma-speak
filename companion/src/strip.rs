@@ -573,6 +573,7 @@ pub fn spawn(jobs: Sender<Job>, asked: Sender<Job>, ui: UiSender) {
                                     let windows = windows.iter().map(|window| picture.on_screen(window)).collect();
                                     ui.send(UiEvent::ChatWindows(windows));
                                 }
+                                Message::Source(name) => ui.send(UiEvent::SourceWindow(name)),
                                 // A command still on the strip when the companion starts was
                                 // given before it was watching, perhaps long ago.
                                 Message::Command(_) if first => {}

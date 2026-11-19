@@ -11,6 +11,8 @@
 //!   word, [?N] to explain the speaker's name (prefix and body are then empty).
 //! - `L`, then one record per chat window separated by byte 30, each
 //!   "name, shown, left, top, width, height, font size" separated by byte 31.
+//! - `W`, then the name of the chat window the overlay gets the lines of, empty for all
+//!   chat. Sent after each `L`. Chosen in the game, with `/tr /window <name>`.
 //! - `S`, then a chat window's name and the mouse wheel steps it has had since login,
 //!   up counted positive.
 //! - `C`, then `reply` or `settings`: a click on one of the addon's buttons.
@@ -26,6 +28,8 @@ use crate::markup::{self, ChatLine};
 pub enum Message {
     Chat { line: ChatLine, handling: Handling },
     Windows(Vec<ChatWindow>),
+    /// The chat window whose lines the overlay gets; empty for all chat.
+    Source(String),
     Wheel { name: String, count: i64 },
     Command(Command),
 }
@@ -64,6 +68,7 @@ pub fn parse(line: &str) -> Option<Message> {
     let (kind, rest) = line.split_once('\t')?;
     match kind {
         "L" => Some(Message::Windows(rest.split('\u{1e}').filter_map(window).collect())),
+        "W" => Some(Message::Source(rest.to_string())),
         "S" => {
             let (name, count) = rest.split_once('\t')?;
             Some(Message::Wheel { name: name.to_string(), count: count.parse().ok()? })
@@ -138,6 +143,8 @@ pub mod tests {
         assert!(matches!(parse("T\t\t缺坦\tffffff"), Some(Message::Chat { handling: Handling::TranslateFirst, .. })));
         assert!(matches!(parse("E\t\t缺坦\tffffff"), Some(Message::Chat { handling: Handling::Explain, .. })));
         assert_eq!(parse("broken"), None);
+        assert_eq!(parse("W\tPick"), Some(Message::Source("Pick".into())));
+        assert_eq!(parse("W\t"), Some(Message::Source(String::new())));
         assert_eq!(parse("7\t\t缺坦"), None);
         assert_eq!(parse("1\tno body"), None);
         assert_eq!(parse("X\ta\tb"), None);

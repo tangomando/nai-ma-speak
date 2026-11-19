@@ -65,6 +65,7 @@ local function ShowHelp()
     ns.Print("/tr /g hello  the same, and open the chat box on guild (or /p, /s, /w Name, /2 ...)")
     ns.Print("/tr /name  explain your target's name in the overlay, or /tr /name 黑熊 for one you type")
     ns.Print("/tr /options  open the options (also under Options > AddOns)")
+    ns.Print("/tr /window General  have the overlay copy that chat window, or /tr /window all for all chat")
     ns.Print("/tr /all  toggle showing lines without Chinese in the overlay too")
     ns.Print("/tr /test  say a Chinese test line to check the strip and overlay")
     ns.Print("/tr /test 10  send that many short test lines to the overlay only (at most " .. TEST_MOST .. ")")
@@ -75,6 +76,31 @@ end
 local commands = {
     options = function()
         if ns.OpenOptions then ns.OpenOptions() else ns.Print("No options panel on this client.") end
+    end,
+    -- Which chat window the overlay copies, as under "Lines sent to the overlay" in the
+    -- options: a window's name, or "all" for all chat. The companion's picker copies
+    -- this command for the player to paste.
+    window = function(_, given)
+        local wanted = strtrim(given or "")
+        if wanted == "" then
+            local source = ns.db.sourceWindow or ""
+            ns.Print("The overlay gets " .. (source == "" and "all chat" or ("what the " .. source .. " window shows"))
+                .. ". Change it with /tr /window <name>, or /tr /window all.")
+            return
+        end
+        if strlower(wanted) == "all" then
+            ns.db.sourceWindow = ""
+            ns.Print("The overlay now gets all chat.")
+            return
+        end
+        for _, name in ipairs(ns.ChatWindowNames()) do
+            if strlower(name) == strlower(wanted) then
+                ns.db.sourceWindow = name
+                ns.Print("The overlay now gets what the " .. name .. " window shows.")
+                return
+            end
+        end
+        ns.Print("No chat window named " .. wanted .. ". There are: " .. table.concat(ns.ChatWindowNames(), ", ") .. ".")
     end,
     all = function()
         ns.db.allLines = not ns.db.allLines

@@ -45,6 +45,8 @@ pub enum UiEvent {
     TestResult { result: Result<String, String>, seconds: f32 },
     /// The game's chat windows, in screen points, whenever the addon reports them.
     ChatWindows(Vec<crate::layout::ChatWindow>),
+    /// The chat window the addon copies to the overlay; empty for all chat.
+    SourceWindow(String),
     /// A reply could not be translated.
     ReplyFailed { english: String, reason: String },
     /// A button click or a typed reply from the game.

@@ -144,6 +144,9 @@ pub struct TranslateApp {
     /// New overlay text arrived, so the font texture is re-sent after this frame.
     font_texture_stale: bool,
     chat_windows: Vec<ChatWindow>,
+    /// The chat window the addon copies to the overlay, empty for all chat; None until an
+    /// addon that reports it has said.
+    source_window: Option<String>,
     /// Whether the overlay was on a chat tab last frame, and where it was last sent.
     overlay_anchored: bool,
     overlay_sent: Option<egui::Pos2>,
@@ -292,6 +295,12 @@ fn slider<N: egui::emath::Numeric>(ui: &mut egui::Ui, name: &str, value: &mut N,
     ui.add(egui::Slider::new(value, range));
 }
 
+/// The command that has the addon copy the chat window `name` to the overlay, or all chat
+/// for an empty name.
+fn source_command(name: &str) -> String {
+    format!("/tr /window {}", if name.is_empty() { "all" } else { name })
+}
+
 fn overlay_id() -> ViewportId {
     ViewportId::from_hash_of("overlay")
 }
@@ -325,6 +334,7 @@ impl TranslateApp {
             font_texture_sent: Instant::now(),
             font_texture_stale: false,
             chat_windows: Vec::new(),
+            source_window: None,
             overlay_anchored: false,
             overlay_sent: None,
             overlay_hidden: false,
@@ -492,6 +502,12 @@ impl TranslateApp {
                         crate::diag::log(format!("chat windows: {windows:?}"));
                     }
                     self.chat_windows = windows;
+                }
+                UiEvent::SourceWindow(name) => {
+                    if self.source_window.as_ref() != Some(&name) {
+                        crate::diag::log(format!("source window: {:?}", if name.is_empty() { "all chat" } else { &name }));
+                    }
+                    self.source_window = Some(name);
                 }
                 UiEvent::Wheel { name, count } => {
                     // The first count only sets the starting point: its steps were made
@@ -1070,6 +1086,8 @@ impl TranslateApp {
         ui.spacing_mut().slider_width = (ui.available_width() - 70.0).max(120.0);
         slider(ui, "Lines kept (scrollback)", &mut self.draft.max_lines, 1..=500);
 
+        self.source_picker(ui);
+
         // On a chat tab the overlay takes the tab's place, size, text size and
         // background. Placed by hand, it has its own, and can be unlocked to drag it.
         let mut anchoring = !self.draft.anchor_tab.trim().is_empty();
@@ -1103,6 +1121,7 @@ impl TranslateApp {
             if let Some(problem) = self.anchor_status() {
                 ui.label(RichText::new(problem).color(theme::MUTED));
             }
+            slider(ui, "Background opacity", &mut self.draft.anchored_opacity, 0.0..=1.0);
         } else {
             let label = if self.locked { "Unlock overlay to move it" } else { "Lock overlay" };
             if ui.add(theme::button(label)).clicked() {
@@ -1116,6 +1135,37 @@ impl TranslateApp {
             slider(ui, "Background opacity", &mut self.draft.overlay_opacity, 0.0..=1.0);
             slider(ui, "Text size", &mut self.draft.font_size, 10.0..=32.0);
         }
+    }
+
+    /// Which chat window the overlay gets the lines of. The choice lives in the game: the
+    /// companion cannot reach the addon, so picking a window copies the /tr /window
+    /// command for the player to paste into chat, and the addon's report shows when it
+    /// has taken effect.
+    fn source_picker(&mut self, ui: &mut egui::Ui) {
+        ui.label(theme::label("Chat to translate"));
+        let shown = |name: &str| if name.is_empty() { "All chat".to_string() } else { format!("The \"{name}\" window") };
+        let current = self.source_window.clone();
+        let mut picked: Option<String> = None;
+        let selected = current.as_deref().map_or("Not reported yet".to_string(), shown);
+        egui::ComboBox::from_id_salt("source_window").width(ui.available_width()).selected_text(selected).show_ui(ui, |ui| {
+            let choices = std::iter::once(String::new()).chain(self.chat_windows.iter().map(|window| window.name.clone()));
+            for name in choices {
+                if ui.selectable_label(current.as_deref() == Some(name.as_str()), shown(&name)).clicked() {
+                    picked = Some(name);
+                }
+            }
+        });
+        if let Some(name) = picked.filter(|name| current.as_ref() != Some(name)) {
+            let command = source_command(&name);
+            ui.ctx().copy_text(command.clone());
+            self.notice = format!("Copied \"{command}\". Paste it into WoW chat and press Enter to switch.");
+        }
+        let note = match &self.source_window {
+            None if self.chat_windows.is_empty() => "Waiting for the addon to report the chat windows.",
+            None => "The addon has not said which window it copies: update it to the companion's version and /reload.",
+            Some(_) => "Picking another copies a /tr command to paste into WoW chat; the game makes the switch.",
+        };
+        ui.label(RichText::new(note).color(theme::MUTED));
     }
 
     /// The lines the overlay holds, to scroll through and select text from.
@@ -1252,8 +1302,9 @@ impl TranslateApp {
         let mut draft = self.draft.clone();
         if let Some(window) = &anchor {
             draft.font_size = window.font_size.clamp(6.0, 48.0);
-            // The chat window behind the overlay already draws its own background.
-            draft.overlay_opacity = 0.0;
+            // The chat window behind the overlay draws its own background; this one is
+            // set apart, and none by default.
+            draft.overlay_opacity = self.draft.anchored_opacity;
         }
         let anchored = anchor.is_some();
         let mut rect = self.overlay_rect;
@@ -1388,6 +1439,14 @@ impl eframe::App for TranslateApp {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Core.lua's /tr /window command takes these: a window's name, or "all".
+    #[test]
+    fn source_commands_match_the_addon() {
+        assert_eq!(source_command("General"), "/tr /window General");
+        assert_eq!(source_command("Guild Chat"), "/tr /window Guild Chat");
+        assert_eq!(source_command(""), "/tr /window all");
+    }
 
     #[test]
     fn a_late_line_goes_before_the_lines_that_followed_it() {
