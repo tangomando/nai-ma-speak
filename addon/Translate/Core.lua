@@ -67,7 +67,7 @@ local function ShowHelp()
     ns.Print("/tr /name  explain your target's name in the overlay, or /tr /name 黑熊 for one you type")
     ns.Print("/tr /options  open the options (also under Options > AddOns)")
     ns.Print("/tr /window General  have the overlay copy that chat window, or /tr /window all for all chat")
-    ns.Print("/tr /glossary  toggle the glossary's English after WoW terms and common lines in chat")
+    ns.Print("/tr /glossary  toggle the glossary's English after WoW terms and common lines in chat; /tr /glossary test shows a sample")
     ns.Print("/tr /all  toggle showing lines without Chinese in the overlay too")
     ns.Print("/tr /test  say a Chinese test line to check the strip and overlay")
     ns.Print("/tr /test 10  send that many made-up chat lines (party, guild, raid, whispers, class-colored names) to the overlay only (at most " .. TEST_MOST .. ")")
@@ -104,10 +104,17 @@ local commands = {
         end
         ns.Print("No chat window named " .. wanted .. ". There are: " .. table.concat(ns.ChatWindowNames(), ", ") .. ".")
     end,
-    glossary = function()
+    -- Toggles the glossary's notes; "/tr /glossary test" shows a sample line with them
+    -- and how much of the glossary the game loaded.
+    glossary = function(_, argument)
+        if strlower(strtrim(argument or "")) == "test" then
+            ns.Print(ns.GlossaryLoaded())
+            ns.Print("Sample: " .. ns.Gloss("缺坦，來個戰士就開，等我一下", 0))
+            return
+        end
         ns.db.glossary = not ns.db.glossary
         ns.Print("Glossary notes in chat " .. (ns.db.glossary and "on." or "off.")
-            .. " They show on new lines.")
+            .. " They show on new lines. /tr /glossary test shows a sample.")
     end,
     all = function()
         ns.db.allLines = not ns.db.allLines
@@ -157,6 +164,7 @@ local commands = {
         ns.Print("Options panel: " .. tostring(ns.optionsSource))
         ns.Print("Lines sent: " .. ((ns.db.sourceWindow or "") == "" and "all chat" or ("what the " .. ns.db.sourceWindow .. " window shows")))
         ns.Print("Chat window copying: " .. tostring(ns.mirrorSource))
+        ns.Print(ns.GlossaryLoaded())
         ns.Print("Link clicks: " .. tostring(ns.linkSource))
         ns.Print("Overlay scrolling: " .. tostring(ns.wheelSource))
         ns.Print("Chat window buttons: " .. tostring(ns.buttonSource))

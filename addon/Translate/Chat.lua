@@ -551,6 +551,19 @@ function ns.Gloss(msg, lineID)
     return table.concat(out)
 end
 
+-- How much of the glossary the game loaded, in words. Glossary.lua is missing until the
+-- game client is started anew after the addon gained it: /reload does not read new files.
+function ns.GlossaryLoaded()
+    if not ns.GLOSSARY_TERMS then
+        return "Glossary: not loaded. Quit the game fully and start it again: it only finds new addon files at start."
+    end
+    local terms, lines = 0, 0
+    for _ in pairs(ns.GLOSSARY_TERMS) do terms = terms + 1 end
+    for _ in pairs(ns.GLOSSARY_LINES or {}) do lines = lines + 1 end
+    return "Glossary: " .. terms .. " terms and " .. lines .. " remembered lines, notes "
+        .. (ns.db.glossary and "on" or "off") .. "."
+end
+
 local function Filter(_, event, msg, author, ...)
     local lineID, chinese = Capture(event, msg, author, ...)
     if not lineID or type(msg) ~= "string" or ns.IsSecret(msg) then return false end

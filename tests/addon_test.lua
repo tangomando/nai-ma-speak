@@ -326,6 +326,13 @@ local link = "|cffa335ee|Hitem:19019::::|h[戰士之劍]|h|r"
 Check("links and colors are left alone", Notes(ns.Gloss(link .. "缺坦", 5)), link .. "缺坦(" .. ns.GLOSSARY_TERMS["缺坦"] .. ")")
 Check("the notes are taken out of a copied line", (ns.Gloss("缺坦", 5):gsub(" *|Haddon:Translate:%a:%d+|h.-|h", "")), "缺坦")
 
+printed = {}
+SlashCmdList.TRANSLATE("/glossary test")
+Check("/tr /glossary test says what was loaded and shows a sample", {
+    tostring(printed[1]:find("Glossary: %d+ terms and 1 remembered lines, notes on%.") ~= nil),
+    tostring(Notes(printed[2]):find("缺坦(need a tank)", 1, true) ~= nil),
+}, { "true", "true" })
+
 -- Choosing the copied chat window, as the companion's picker has the player paste.
 local before = ns.db.sourceWindow
 printed = {}

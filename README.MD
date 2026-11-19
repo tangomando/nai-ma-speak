@@ -113,7 +113,7 @@ The same from the chat box, where `/nms` works in place of `/tr`:
 | `/tr /name` | Explain your target's name in the overlay; `/tr /name 黑熊` for one you type |
 | `/tr /options` | Open the addon's options |
 | `/tr /window General` | Have the overlay copy that chat window; `/tr /window all` for all chat. The companion's "Chat to translate" picker copies this command for you |
-| `/tr /glossary` | Turn the glossary's English after WoW terms and common lines in chat on or off |
+| `/tr /glossary` | Turn the glossary's English after WoW terms and common lines in chat on or off; `/tr /glossary test` shows a sample line and how much of the glossary the game loaded |
 | `/tr /all` | Toggle lines without Chinese in the overlay |
 | `/tr /test` | Say a Chinese test line in `/say` to check the strip and overlay |
 | `/tr /test 10` | Send that many made-up chat lines to the overlay only: party, guild, raid, say, yell, whispers and a channel, from Chinese-named players in class colors, one with an item link |
