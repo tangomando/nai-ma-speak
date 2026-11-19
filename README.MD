@@ -22,14 +22,14 @@ This is a fork of [cherryroots/Translate](https://github.com/cherryroots/Transla
 - **`companion`**: a small Rust app that runs next to the game, translates, and draws the result as an overlay over the
   game.
 
-> **Tested only on macOS with WoW: Forever.** Retail WoW, Windows and Linux are untested since the fork: the addon declares the retail interface and the companion builds and passes its tests on the other systems, but nobody has run them with the game.
+> **Tested with WoW: Forever on macOS, and on Windows 11 (4K screen, the game's HDR output on).** Retail WoW and Linux are untested since the fork: the addon declares the retail interface and the companion builds and passes its tests on Linux, but nobody has run them with the game.
 
 ## How It Works
 
 WoW addons cannot reach the internet, so the two parts talk through the screen:
 
 1. **Game to companion.** The addon draws each new chat line as a small strip of colored blocks in the top-left corner
-   of the screen (256 x 36 pixels). The companion finds the strip, decodes it and translates the Chinese lines. The strip's last row shows every color it uses, so it is read correctly whatever the display's color profile or the game's gamma setting does to the colors.
+   of the screen (256 x 36 pixels). The companion finds the strip, decodes it and translates the Chinese lines. The strip's last row shows every color it uses, so it is read correctly whatever the display's color profile or the game's gamma setting does to the colors. With the game's HDR output on, the capture comes back brightened, so the addon then draws the strip at half brightness to keep its colors from clipping to white.
 
 2. **Overlay.** The companion shows the lines in a see-through, click-through window. It can sit exactly on one of your chat tabs, taking its place, size and text size, and it draws lines the way the game does: same colors, wording, class-colored names, chat font and text shadow. A Chinese line appears at once, marked "(translation pending)", and turns into English when the translation arrives.
 3. **Replies.** You type English, and the Chinese is put on your clipboard to paste into the game's chat box. The companion only ever writes to the clipboard.
@@ -60,7 +60,7 @@ Download both parts from the [latest release](https://github.com/norswap/nai-ma-
 | --- | --- |
 | `Nai-Ma-Speak-addon.zip` | The addon |
 | `Nai-Ma-Speak-macos.zip` | The companion app for macOS (Apple silicon and Intel) |
-| `nai-ma-speak-windows-x64.exe` | The companion for Windows (untested) |
+| `nai-ma-speak-windows-x64.exe` | The companion for Windows |
 | `nai-ma-speak-linux-x64` | The companion for Linux (untested) |
 
 ### The addon
@@ -84,7 +84,7 @@ Give it a folder of its own: it keeps `config.json`, `translate.log` and `backlo
   - Or in Terminal: `xattr -dr com.apple.quarantine "Nai Ma Speak.app"`.
 
   macOS then asks for the Screen Recording permission, so the companion can read the strip; a new version may ask again.
-- **Windows:** run the `.exe`.
+- **Windows:** run the `.exe`. It is not signed, so Windows SmartScreen may warn the first time: choose **More info**, then **Run anyway**. Building it yourself needs the Visual Studio C++ Build Tools besides Rust.
 - **Linux:** run `chmod +x nai-ma-speak-linux-x64` once, then start it.
 
 ### Building it yourself
@@ -97,7 +97,7 @@ Run WoW in **windowed** or **windowed (fullscreen)** mode: overlays cannot draw 
 
 ### In the game
 
-The two buttons sit on the main chat window. Their place (on the tab row, upright beside the window at its top right or bottom right, or hidden) is set under Options > AddOns > Nai Ma Speak, along with which chat window the overlay copies.
+The two buttons sit on the main chat window. Their place (on the tab row, upright beside the window at its top right or bottom right, or hidden) is set under Options > AddOns > Nai Ma Speak, along with which chat window the overlay copies. That window can also be picked in the companion (see below).
 
 - **Translate** opens a box above the chat window. Type English and press Enter: the box closes at once and a note on the overlay says "Translating", then "Copied, paste it". Paste into the game's chat box and send. If the translation fails or is too long for one chat message (255 bytes), the note says so, and Translate reopens the box with your text.
 - **App** brings the companion app's window over the game, and sends it away again. (The addon's own few settings are in the game's options.)
@@ -126,7 +126,10 @@ Settings take effect as you change them and are saved by themselves. **Undo** pu
   - *Google Translate* needs nothing, but it is an unofficial endpoint: it is rate-limited and may stop working.
   - *Claude* needs a key from the [Claude Console](https://console.anthropic.com). Haiku is the default, and enough for chat lines.
   - *OpenAI-compatible* has presets for OpenAI and for Tencent's translation model [HY-MT1.5-7B](https://huggingface.co/tencent/HY-MT1.5-7B-GGUF) on a local [Ollama](https://ollama.com) server (`ollama pull hf.co/tencent/HY-MT1.5-7B-GGUF:Q4_K_M`, 4.6 GB, free and offline). "Custom" takes any base URL and model; a bare address like `http://localhost:1234` gets `/v1` added.
-- **Overlay:** whether to show the Chinese under each translation, whether to translate player names, when to hide the overlay, how many lines to keep, and where it sits. "Anchor to chat tab" puts it on one of the game's chat tabs; a spare, empty tab works best. Unticked, you unlock the overlay, drag it into place and set its size and text size yourself. Keep it off the top-left corner, where the strip is.
+- **Overlay:** whether to show the Chinese under each translation, whether to translate player names, when to hide the overlay, how many lines to keep, and where it sits.
+  - **Chat to translate** shows which chat window the game sends to the overlay, or all chat. The companion cannot change game settings, so picking another copies a command such as `/tr /window General`: paste it into WoW chat and press Enter, and the picker follows once the game has switched. This works whether or not the overlay sits on a chat tab.
+  - "Anchor to chat tab" puts the overlay on one of the game's chat tabs; a spare, empty tab works best. It takes the tab's size and text size, and has a background opacity of its own, none by default since the chat window draws one; raise it to read over bright scenes.
+  - Unticked, you unlock the overlay, drag it into place and set its size, text size and background opacity yourself. Keep it off the top-left corner, where the strip is.
 - **Status:** whether the strip was found and whether it can be read, and which chat tabs the game reported. **Copy report** copies all of that with your settings (without the API keys) and the log, to paste into a bug report.
 - **Chat history** and **Translate:** the recent lines, and a field for translating a reply outside the game.
 
@@ -135,7 +138,8 @@ Chat lines are sent to whichever backend you choose. Only a local model keeps th
 ## Troubleshooting
 
 - **The overlay stays empty.** Open the Status tab: it says whether the pixel strip was found, and whether it can be read. "Found, but cannot read it" with a note about the palette row means the addon is older than the companion: update both from the same release. The strip must be visible in the top-left corner of the game, and on macOS the companion needs the Screen Recording permission. `/tr /probe` in the game reports what the addon found, and `/tr /test` sends a line through.
-- **To check a screenshot for the strip,** run `translate-companion --decode screenshot.png`.
+- **"Found the pixel strip, but cannot read it".** When this lasts, the companion logs a diagnosis in `translate.log` (how the strip's color levels came back, and which colors run together) and saves the strip as `strip-unreadable.png` beside it, once per run. That picture is chat in encoded form: it stays on your computer, so attach it to a report only if you are happy to. "Too close together to tell apart" usually means brightness: update the addon if the game's HDR output is on, otherwise check Windows HDR and the game's brightness, contrast and gamma.
+- **To check a screenshot for the strip,** run `translate-companion --decode screenshot.png`. It prints the same diagnosis and also writes it to `screenshot.png.decode.txt`, since the Windows build cannot print to a terminal.
 - **The companion froze or misbehaved.** `translate.log`, next to `config.json`, records crashes, stalls, translation errors and what happened to the strip and the chat tabs. **Copy report** on the Status tab copies it with your settings, without the API keys.
 
 ## Known limits
