@@ -90,10 +90,20 @@ fn block_color(img: &RgbaImage, x: u32, y: u32, block: u32) -> Option<Color> {
     Some([median(r), median(g), median(b)])
 }
 
+/// Below this, the brightest channel is taken for black: no sync color.
+const DARKEST_SYNC: f32 = 64.0;
+
 /// A color read as one of the sync colors, using only on/off per channel: the strip has
-/// to be found before its palette can be read.
+/// to be found before its palette can be read. A channel is on when it is at least half
+/// as bright as the brightest one, not above a set level: with the game's HDR output on,
+/// the addon draws the strip at half brightness, and the capture may brighten it again
+/// or not.
 fn on_off(color: Color) -> u8 {
-    let on = |v: f32| if v >= 128.0 { 3 } else { 0 };
+    let brightest = color[0].max(color[1]).max(color[2]);
+    if brightest < DARKEST_SYNC {
+        return 0;
+    }
+    let on = |v: f32| if v >= brightest / 2.0 { 3 } else { 0 };
     on(color[0]) * 16 + on(color[1]) * 4 + on(color[2])
 }
 
@@ -297,7 +307,7 @@ fn likely_cause(img: &RgbaImage, lock: Lock) -> Option<&'static str> {
         }
     }
     (closest < TOO_CLOSE).then_some(
-        "some of its colors come back too close together to tell apart. Check that Windows HDR is off, and the game's brightness, contrast and gamma are near their defaults.",
+        "some of its colors come back too close together to tell apart. If the game's HDR option is on, update the addon to the companion's version and /reload; otherwise check that Windows HDR is off and the game's brightness, contrast and gamma are near their defaults.",
     )
 }
 
@@ -786,6 +796,35 @@ mod tests {
         assert!(likely_cause(&img, lock).is_some());
         let lines = diagnose(&img, lock);
         assert!(lines.iter().any(|l| l.contains("too close to tell apart")), "{lines:?}");
+    }
+
+    /// Every channel scaled by `gain` and clipped at white.
+    fn scaled(img: &RgbaImage, gain: f32) -> RgbaImage {
+        let mut seen = img.clone();
+        for pixel in seen.pixels_mut() {
+            for c in 0..3 {
+                pixel[c] = (pixel[c] as f32 * gain).min(255.0) as u8;
+            }
+        }
+        seen
+    }
+
+    /// The game's HDR output as a capture saw it on Windows: 85 came back as 149, and
+    /// 170 and 255 both as 255. Drawn at full brightness the strip cannot be read; drawn
+    /// at half, as Strip.lua does with HDR on, it can, brightened or not.
+    #[test]
+    fn reads_the_dimmed_strip_through_hdr() {
+        let text = "7\t[Party] 奶媽\t副本缺補 密我";
+        let full = paint(&encode(5, text), (0, 0), 4);
+        let lock = Lock { x: 0, y: 0, block: 4 };
+        assert_eq!(decode(&scaled(&full, 1.75), lock), Decoded::Corrupt);
+        assert!(likely_cause(&scaled(&full, 1.75), lock).is_some());
+        let dimmed = scaled(&full, 0.5);
+        for gain in [1.0, 1.75, 2.0] {
+            let seen = scaled(&dimmed, gain);
+            assert_eq!(find(&seen), Some(lock), "gain {gain}");
+            assert!(matches!(decode(&seen, lock), Decoded::Frame(f) if f.text == text), "gain {gain}");
+        }
     }
 
     #[test]
