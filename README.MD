@@ -114,7 +114,7 @@ The same from the chat box, where `/nms` works in place of `/tr`:
 | `/tr /window General` | Have the overlay copy that chat window; `/tr /window all` for all chat. The companion's "Chat to translate" picker copies this command for you |
 | `/tr /all` | Toggle lines without Chinese in the overlay |
 | `/tr /test` | Say a Chinese test line in `/say` to check the strip and overlay |
-| `/tr /test 10` | Send that many test lines to the overlay only |
+| `/tr /test 10` | Send that many made-up chat lines to the overlay only: party, guild, raid, say, yell, whispers and a channel, from Chinese-named players in class colors, one with an item link |
 | `/tr /probe` | Report which client features the addon found |
 | `/tr /help` | List the commands |
 

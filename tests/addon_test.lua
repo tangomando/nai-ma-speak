@@ -281,7 +281,15 @@ Check("a target with nothing to say is refused", #printed, 2)
 Check("nothing was sent for it", Frames(), {})
 
 slash("/test 2")
-Check("counted test lines go to the overlay", Frames(), { "1 | [Test]:  | 一 (Translate test) | ffffff | Test\n1 | [Test]:  | 二 (Translate test) | ffffff | Test" })
+Check("counted test lines go to the overlay, worded and colored like real chat", Frames(), {
+    "1 | [Party] [|cffffffff奶媽小美|r]:  | 缺坦，來個戰士就開 (Translate test) | ffffff | 奶媽小美\n"
+    .. "1 | [Guild] [|cff3fc7eb冰霜法爺|r]:  | 今晚團本幾點開？ (Translate test) | 40ff40 | 冰霜法爺" })
+slash("/test 6")
+local sixth = table.concat(Frames(), "\n"):match("[^\n]*$")
+Check("a channel line names its channel and carries an item link", {
+    tostring(sixth:find("[1. 綜合] [", 1, true) ~= nil), tostring(sixth:find("|cffa335ee[", 1, true) ~= nil), -- the link, as its name in epic purple
+    tostring(sixth:match("| (%x+) | 德魯伊老王$")),
+}, { "true", "true", "ffbfbf" })
 Check("and are not said in chat", #said, 0)
 slash("/TEST")
 Check("the plain test line is said", said[1], "SAY 大家好，今天一起打副本嗎？ (Translate test)")

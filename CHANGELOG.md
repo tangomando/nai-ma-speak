@@ -57,6 +57,9 @@ HDR output (`HDROutput 1`): a capture of the game comes back brightened, and the
 
 ### Addon
 
+- `/tr /test <count>` sends made-up chat that looks like the real thing: party, guild, say, whisper, raid, a
+  numbered channel and yell lines, from Chinese-named players in their class colors, Traditional and Simplified, one
+  with an item link (named in the player's own language, as real links are). They were plain "[Test]: 一" lines.
 - New command `/tr /window <name>` (or `/tr /window all`): the same setting as "Lines sent to the overlay" in the
   options, matched without regard to case.
 - New strip line `W\t<name>`, sent after each `L`: the chat window the addon copies, empty for all chat. Older

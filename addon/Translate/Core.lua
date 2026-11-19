@@ -68,7 +68,7 @@ local function ShowHelp()
     ns.Print("/tr /window General  have the overlay copy that chat window, or /tr /window all for all chat")
     ns.Print("/tr /all  toggle showing lines without Chinese in the overlay too")
     ns.Print("/tr /test  say a Chinese test line to check the strip and overlay")
-    ns.Print("/tr /test 10  send that many short test lines to the overlay only (at most " .. TEST_MOST .. ")")
+    ns.Print("/tr /test 10  send that many made-up chat lines (party, guild, raid, whispers, class-colored names) to the overlay only (at most " .. TEST_MOST .. ")")
     ns.Print("/tr /probe  report which client features this addon found")
     ns.Print("/tr /help  this list")
 end
@@ -115,9 +115,11 @@ local commands = {
         end
         ns.ExplainName(name)
     end,
-    -- With a count, sends that many short lines, each a number in Chinese,
-    -- straight to the overlay: enough different lines to see how the
-    -- translator copes with a burst. Nothing is said in chat: the game only
+    -- With a count, sends that many made-up chat lines straight to the overlay,
+    -- cycling through party, guild, say, whisper, raid, a channel and yell lines
+    -- from Chinese-named players in their class colors, one with an item link:
+    -- enough to see how the overlay draws real chat and how the translator copes
+    -- with a burst. Nothing is said in chat: the game only
     -- lets an addon talk in /say right on a key press, not from a timer. The
     -- companion never reuses an earlier translation for a line marked
     -- "(Translate test)".
@@ -125,7 +127,7 @@ local commands = {
         if count then
             count = math.max(1, math.min(count, TEST_MOST))
             for i = 1, count do
-                ns.SendTestLine(ns.ChineseNumber(i) .. " (Translate test)")
+                ns.SendTestLine(i)
             end
             ns.Print("Sent " .. count .. " test lines to the overlay. They are not said in chat.")
             return

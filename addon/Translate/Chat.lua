@@ -402,9 +402,46 @@ function ns.ExplainName(name)
     Ask("N", "", "", "ffffff", name)
 end
 
--- A made-up Chinese line for the overlay, as if someone had said it.
-function ns.SendTestLine(text)
-    SendChat(function() return "1", "[Test]: ", text, "ffffff", "Test" end)
+-- Class colors as the game has them, for test lines on a client without RAID_CLASS_COLORS.
+local CLASS_COLORS = {
+    WARRIOR = "ffc69b6d", PALADIN = "fff48cba", HUNTER = "ffaad372", ROGUE = "fffff468", PRIEST = "ffffffff",
+    SHAMAN = "ff0070dd", MAGE = "ff3fc7eb", WARLOCK = "ff8788ee", DRUID = "ffff7c0a",
+}
+
+-- Made-up chat for "/tr /test <count>": the kinds of line, speakers and words a Taiwanese
+-- or mainland server has, so the overlay shows what real chat looks like: the channel's
+-- color, class-colored names in Chinese, an item link, Traditional and Simplified.
+local TEST_CHAT = {
+    { "CHAT_MSG_PARTY", "奶媽小美", "PRIEST", "缺坦，來個戰士就開" },
+    { "CHAT_MSG_GUILD", "冰霜法爺", "MAGE", "今晚團本幾點開？" },
+    { "CHAT_MSG_SAY", "獵人阿傑", "HUNTER", "有人要組死亡礦坑嗎" },
+    { "CHAT_MSG_WHISPER", "影舞者", "ROGUE", "密我，可以帶你" },
+    { "CHAT_MSG_RAID", "狂暴戰神", "WARRIOR", "等我一下，马上到" },
+    { "CHAT_MSG_CHANNEL", "德魯伊老王", "DRUID",
+        "收 |cffa335ee|Hitem:19019::::::::60:::::|h[雷霆之怒，逐風者的祝福之劍]|h|r 價格私聊", "1. 綜合" },
+    { "CHAT_MSG_YELL", "聖光小騎", "PALADIN", "這邊有稀有怪！快來！" },
+    { "CHAT_MSG_PARTY", "薩滿大叔", "SHAMAN", "奶妈没蓝了，休息一下" },
+    { "CHAT_MSG_GUILD", "暗影術士", "WARLOCK", "謝謝大家 3q" },
+    { "CHAT_MSG_RAID", "奶媽小美", "PRIEST", "注意站位，別站火裡" },
+}
+ns.TEST_CHAT_SIZE = #TEST_CHAT
+
+-- The `i`th made-up chat line for the overlay, as if someone had said it, worded and
+-- colored the way the game words and colors its kind of line. The test mark has the
+-- companion translate it afresh each time.
+function ns.SendTestLine(i)
+    local event, name, class, text, channel = unpack(TEST_CHAT[(i - 1) % #TEST_CHAT + 1])
+    local color = LineColor(event, channel and 1)
+    local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+    local named = "|c" .. (classColor and classColor.colorStr or CLASS_COLORS[class]) .. name .. "|r"
+    local prefix
+    if channel then
+        prefix = "[" .. channel .. "] [" .. named .. "]: "
+    else
+        local around = AROUND_NAME[event]
+        prefix = around[1] .. named .. around[2]
+    end
+    SendChat(function() return "1", Markup(prefix), Markup(text .. " (Translate test)"), color, name end)
 end
 
 -- Runs Mirror for tests, and behind the hook where an error must not reach the chat window.
