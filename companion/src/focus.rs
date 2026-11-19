@@ -6,6 +6,8 @@ use std::time::Duration;
 pub type Rect = [f32; 4];
 
 /// A window on screen.
+// Listed on macOS only; elsewhere just the focused window is known.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Window {
     pub app: String,
@@ -88,6 +90,7 @@ pub fn is_wow(title: &str, app: &str) -> bool {
 /// Works out the view of WoW from the windows on screen, listed front to back.
 /// Only ordinary windows count as covering it: the menu bar, the Dock and floating
 /// windows of other tools sit in higher layers and are always in front of everything.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn view(front_to_back: &[Window]) -> WowView {
     let mut covers = Vec::new();
     for window in front_to_back.iter().filter(|w| w.layer == 0 && w.rect[2] > 0.0 && w.rect[3] > 0.0) {
@@ -155,11 +158,17 @@ fn wow_view() -> WowView {
 }
 
 /// Elsewhere only the focused window is known: WoW counts as shown while it has focus.
+/// The list leaves out the companion's own windows, so while one of them has focus the
+/// view is Unknown and the overlay stays.
 #[cfg(not(target_os = "macos"))]
 fn wow_view() -> WowView {
     let focused = xcap::Window::all().ok().and_then(|windows| {
         let focused = windows.iter().find(|w| w.is_focused().unwrap_or(false))?;
-        Some(is_wow(&focused.title().unwrap_or_default(), &focused.app_name().unwrap_or_default()))
+        // The title alone settles it for WoW. The program's name is asked for only when it
+        // does not: on Windows that fails for a program run as administrator, such as Task
+        // Manager, and xcap logs an error each time.
+        let title = focused.title().unwrap_or_default();
+        Some(is_wow(&title, "") || is_wow(&title, &focused.app_name().unwrap_or_default()))
     });
     match focused {
         None => WowView::Unknown,
