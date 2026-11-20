@@ -64,6 +64,9 @@ HDR output (`HDROutput 1`): a capture of the game comes back brightened, and the
   settings (up to 5000 lines of 60 characters or fewer; the least used go first). A line said again is answered from
   there first: at once, with no request to the backend, and across restarts. "Remember translations" on the Overlay
   tab turns it off; test lines are never remembered.
+- **Order of lookup:** remembered line (whole line, spaces collapsed), then the in-session cache, then the backend;
+  the answer is remembered. Only incoming chat lines use the glossary: explanations, names and replies do not, and
+  the 760 terms remain prompt hints and in-game notes, never a stand-in for a translation.
 - **In the game's chat:** the companion writes `Glossary.lua` into the addon's folder (found beside the companion,
   in the usual WoW folders, or set on the Overlay tab), at most every 20 s and only when it changed: the 500 terms of
   the slang and place lists in both scripts (760 entries) and the lines seen at least twice. The addon reads it at login
