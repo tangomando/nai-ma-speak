@@ -88,6 +88,15 @@ HDR output (`HDROutput 1`): a capture of the game comes back brightened, and the
 - New strip line `W\t<name>`, sent after each `L`: the chat window the addon copies, empty for all chat. Older
   companions ignore it, and an older addon simply never sends it (the picker then says "Not reported yet").
 
+### Translating, never answering
+
+- A reply typed after `/tr` (or a chat line) that was a question or a request ("how are you?", "can you heal?") was
+  sometimes answered by the model instead of translated. The text now goes between `<text>` tags, and every
+  translating prompt says it is never addressed to the model: translate exactly what it says, keep a question a
+  question, add and leave out nothing, never reply in its own words.
+- A reply to be put into Chinese that comes back with no Chinese and not as typed ("gg" stays "GG") is the model
+  talking: it is asked once more, told what went wrong; if it answers again, nothing is copied and the note says so.
+
 ### Smaller
 
 - The focused-window check goes by the window title, and asks for the program's name only for an untitled window.
@@ -115,7 +124,7 @@ HDR output (`HDROutput 1`): a capture of the game comes back brightened, and the
 - Switching with `/tr /window`: the game switched to another window and the companion's picker followed.
 - Strip cover: the window sits exactly over the strip (0,0, 256x36) with display affinity 0x11, and the strip is
   read through it. A test window marked the same way vanished from a GDI capture of the screen.
-- `cargo test --locked` (77 tests, 14 new) and `cargo clippy --all-targets` clean on Windows. Addon tests pass under
+- `cargo test --locked` (79 tests, 16 new) and `cargo clippy --all-targets` clean on Windows. Addon tests pass under
   Lua 5.4 with `unpack = table.unpack`; this machine has no Lua 5.1.
 - Glossary in the game: after a full client restart, `/tr /glossary test` reported 760 terms loaded and showed the
   sample with its notes.

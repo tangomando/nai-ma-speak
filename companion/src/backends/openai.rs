@@ -14,12 +14,12 @@ fn is_hy_mt(model: &str) -> bool {
 /// Builds the request body for either prompt style.
 fn request_body(model: &str, text: &str, task: Task, region: Region, is_claude: bool) -> Value {
     // HY-MT only translates chat; anything else is asked for the ordinary way even of it.
-    if !is_hy_mt(model) || !matches!(task, Task::ToEnglish | Task::ToChinese) {
+    if !is_hy_mt(model) || !matches!(task, Task::ToEnglish | Task::ToChinese | Task::ToChineseAgain) {
         let mut body = json!({
             "model": model,
             "messages": [
                 { "role": "system", "content": system_prompt(text, task, region) },
-                { "role": "user", "content": text },
+                { "role": "user", "content": crate::translate::user_message(text, task) },
             ],
         });
         // Claude models reject a temperature below 1 on Anthropic's OpenAI-compatible
@@ -34,7 +34,7 @@ fn request_body(model: &str, text: &str, task: Task, region: Region, is_claude: 
     let target = match task {
         Task::ToEnglish => "英语",
         // The model card's names for Chinese and Traditional Chinese.
-        Task::ToChinese => match region {
+        Task::ToChinese | Task::ToChineseAgain => match region {
             Region::Taiwan => "繁体中文",
             Region::Mainland => "中文",
         },
@@ -207,6 +207,6 @@ mod tests {
         assert_eq!(plain["temperature"], 0.2);
         let claude = request_body("claude-haiku-5-5", "缺奶", Task::ToEnglish, Region::Taiwan, true);
         assert!(claude.get("temperature").is_none());
-        assert_eq!(claude["messages"][1]["content"], "缺奶");
+        assert_eq!(claude["messages"][1]["content"], "<text>缺奶</text>", "the line is given as text to translate");
     }
 }

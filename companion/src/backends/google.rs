@@ -38,8 +38,8 @@ pub fn translate(config: &Config, text: &str, task: Task, notify: &dyn Fn(String
     let url = format!("{}/translate_a/single", config.google_free_base.trim().trim_end_matches('/'));
     let (source, target) = match (task, config.reply_variant) {
         (Task::ToEnglish, _) => ("auto", "en"),
-        (Task::ToChinese, Region::Taiwan) => ("en", "zh-TW"),
-        (Task::ToChinese, Region::Mainland) => ("en", "zh-CN"),
+        (Task::ToChinese | Task::ToChineseAgain, Region::Taiwan) => ("en", "zh-TW"),
+        (Task::ToChinese | Task::ToChineseAgain, Region::Mainland) => ("en", "zh-CN"),
         (Task::Explain(_) | Task::Name | Task::ExplainName, _) => {
             return Err("Google Translate cannot explain lines or names. Choose Claude or an OpenAI-compatible model on the Backend tab.".into())
         }
