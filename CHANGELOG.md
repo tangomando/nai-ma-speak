@@ -102,6 +102,8 @@ HDR output (`HDROutput 1`): a capture of the game comes back brightened, and the
   read through it. A test window marked the same way vanished from a GDI capture of the screen.
 - `cargo test --locked` (77 tests, 14 new) and `cargo clippy --all-targets` clean on Windows. Addon tests pass under
   Lua 5.4 with `unpack = table.unpack`; this machine has no Lua 5.1.
-- **Not yet checked:** the glossary notes in the game's chat and a line learned from translation reaching it, the
+- Glossary in the game: after a full client restart, `/tr /glossary test` reported 760 terms loaded and showed the
+  sample with its notes.
+- **Not yet checked:** a line learned from translation reaching the game's chat, notes on real incoming chat, the
   scrolling of a hand-placed overlay in the game, the always-dimmed strip in the game (the HDR fix was checked with the version that dimmed it
   only under HDR), the macOS build with these changes, and retail.
