@@ -267,6 +267,23 @@ mod tests {
         assert!(lua.contains("[\"他說\\\"好\\\"\"] = \"He said \\\"OK\\\" / fine\","), "{lua}");
     }
 
+    /// Glossary.lua is run by the game, and its lines are other players' chat: a line
+    /// built to close the string and add code of its own must stay one harmless string.
+    #[test]
+    fn chat_cannot_put_code_into_the_glossary() {
+        let attack = "\"] = \"\" } SendChatMessage(\"hi\") --\\\"\n]] \\n";
+        let line = lua_string(attack, false);
+        // Every quote inside is escaped, so the string ends only at its last character.
+        let inner = &line[1..line.len() - 1];
+        let unescaped = inner.char_indices().filter(|&(i, c)| {
+            c == '"' && inner[..i].chars().rev().take_while(|&b| b == '\\').count() % 2 == 0
+        });
+        assert_eq!(unescaped.count(), 0, "{line}");
+        assert!(!line.contains('\n'), "no line breaks");
+        // English cannot start a chat link or color in the game.
+        assert!(!lua_string("|Hurl:evil|h[click]|h", true).contains('|'));
+    }
+
     /// The addon ships a Glossary.lua with the terms and no lines, so it has them before
     /// the companion first runs. Rewrite it with `translate-companion --write-glossary
     /// ../addon/Translate/Glossary.lua` when the slang lists change.

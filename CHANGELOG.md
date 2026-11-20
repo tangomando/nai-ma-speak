@@ -96,6 +96,18 @@ HDR output (`HDROutput 1`): a capture of the game comes back brightened, and the
 - macOS-only window listing code is marked so the Windows build has no dead-code warnings.
 - README: Windows marked as tested, the HDR note, the new overlay settings, `/tr /window`, and the new troubleshooting.
 
+### Security review
+
+- The companion opens network connections only to the translation backend chosen in the settings (Claude, Google
+  Translate, or an OpenAI-compatible address); nothing else: no telemetry, update check or crash report. In the
+  Windows build only `ureq` can open a connection. The Claude key goes only to the Claude address, which the settings
+  window does not offer to change.
+- The addon sends nothing in the game by itself: no addon messages, whispers or mail. `/tr /test` without a count says
+  one fixed line in `/say`, only when typed.
+- `Glossary.lua` is run by the game and holds other players' chat: every string is escaped (backslash, quote, control
+  characters) and the English cannot hold `|`, so a chat line cannot add code or links. A test tries such a line.
+- No clipboard reads, no input sent to other programs; the companion launches only itself (Restart).
+
 ### Tested
 
 - Windows 11, 4096x2160 at 100%, WoW: Forever with HDR output on, Claude Haiku backend: the strip is read and chat lines
